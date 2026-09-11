@@ -1,7 +1,8 @@
 """Tray icons painted at runtime.
 
-Three states per PRD-01 §9.1: idle (outline clock), running (filled clock in the
-accent colour) and attention (outline clock with a badge). Rendered at 16, 22 and
+Three states per PRD-01 §9.1: idle (outline clock on a white face, so it reads on
+a grey taskbar), running (filled clock in the accent colour) and attention (idle
+clock with a badge). Rendered at 16, 22 and
 32 px so Windows, X11 and HiDPI each get a crisp source. Replace with real
 artwork under ``resources/`` when it exists; ``tray.py`` only calls
 :func:`make_icon`.
@@ -17,6 +18,7 @@ from PySide6.QtGui import QBrush, QColor, QIcon, QPainter, QPen, QPixmap
 _SIZES = (16, 22, 32)
 _ACCENT = QColor("#2f80ed")
 _BADGE = QColor("#e5484d")
+_FACE = QColor("#ffffff")
 
 
 class TrayState(Enum):
@@ -57,7 +59,7 @@ def _render(state: TrayState, size: int, fg: QColor) -> QPixmap:
         hand_colour = QColor("#ffffff")
     else:
         p.setPen(QPen(fg, stroke))
-        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setBrush(QBrush(_FACE))
         p.drawEllipse(face)
         hand_colour = fg
 
