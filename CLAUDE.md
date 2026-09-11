@@ -82,6 +82,18 @@ Tray-resident time tracker. Product requirements: `docs/PRD-time-tracker.md`
 - Anchoring arithmetic is done in UTC: adding a timedelta to a zone-aware
   local datetime is wall-clock arithmetic and drops an hour across DST.
 
+## Launching on Windows
+
+- Entry point is a `[project.gui-scripts]` script (`timetracker.exe`, built
+  against pythonw). The Desktop shortcut points at it.
+- The venv `pythonw.exe` redirector on this Python 3.13.0 install execs the
+  console `python.exe`, so a console can still appear. `platform/win32.py`
+  `detach_orphan_console()` frees a console that has no other client
+  (`GetConsoleProcessList == 1`) at startup; a console shared with a shell
+  (`python -m timetracker` for debugging) is kept.
+- Never launch the app from the chat's Run button: that terminal owns the
+  process tree and kills it when closed.
+
 ## Local commands
 
 ```
