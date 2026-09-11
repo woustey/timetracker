@@ -136,17 +136,18 @@ def test_delete_referenced_is_refused_by_restrict(
     assert types.entry_count(t.id) == 1
 
 
-def test_list_ordering_pinned_then_mru_then_alpha(clients: LabelRepo, clock: FakeClock) -> None:
+def test_list_ordering_pinned_then_mru_then_creation(clients: LabelRepo, clock: FakeClock) -> None:
     zed = clients.create("Zed")
     clients.create("Alpha")
     mid = clients.create("Mid")
+    clients.create("Beta")
     pinned = clients.create("Pinned")
     clients.set_pinned(pinned.id, True)
     clients.touch_last_used(zed.id)
     clock.advance(60)
     clients.touch_last_used(mid.id)
     order = [x.name for x in clients.list_all()]
-    assert order == ["Pinned", "Mid", "Zed", "Alpha"]
+    assert order == ["Pinned", "Mid", "Zed", "Alpha", "Beta"]
     assert clients.get(mid.id).last_used_at == datetime(2026, 9, 11, 10, 1, tzinfo=UTC)
 
 

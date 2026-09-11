@@ -60,6 +60,16 @@ Tray-resident time tracker. Product requirements: `docs/PRD-time-tracker.md`
   real artwork exists.
 - NFR-05 test = static import scan of `src/` for network modules + a
   `sys.addaudithook` on `socket.*` during an offscreen app boot.
+- FR-111 "keep running in background" = cancel the quit; the app stays in the
+  tray. (The alternative — quit and recover later — silently loses everything
+  after the last heartbeat.)
+- FR-107 single instance uses an OS file lock (`instance_lock.py`) plus a
+  `show.request` file watched by `QFileSystemWatcher`. No `QtNetwork`/
+  `QLocalServer` — NFR-05 forbids it.
+- `SystemClock` takes an injected IANA zone name; `app.py` passes
+  `QTimeZone.systemTimeZoneId()` because the stdlib cannot name the zone on
+  Windows.
+- Label chip order: pinned → most recently used → creation order.
 
 ## Local commands
 

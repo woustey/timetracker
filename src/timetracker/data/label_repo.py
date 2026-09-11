@@ -77,11 +77,15 @@ class LabelRepo:
         return None if row is None else self._to_label(row)
 
     def list_all(self, *, include_archived: bool = False) -> list[Label]:
-        """Pinned first, then most recently used, then alphabetical (FR-407 default)."""
+        """Pinned first, then most recently used, then creation order (FR-407 default).
+
+        Creation order rather than alphabetical keeps the seed types in the
+        mockup's order and puts a freshly typed label at the end of its column.
+        """
         where = "" if include_archived else "WHERE is_archived = 0"
         rows = self._conn.execute(
             f"SELECT {_COLUMNS} FROM {self._table} {where} "
-            "ORDER BY is_pinned DESC, last_used_at IS NULL, last_used_at DESC, name_norm ASC"
+            "ORDER BY is_pinned DESC, last_used_at IS NULL, last_used_at DESC, id ASC"
         ).fetchall()
         return [self._to_label(r) for r in rows]
 

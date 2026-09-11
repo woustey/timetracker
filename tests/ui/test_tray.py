@@ -1,8 +1,9 @@
-"""M0 tray behaviour: icon per state, Quit in the menu, clean quit, no GC bug."""
+"""Tray behaviour: icon per state, menu, clean quit, no GC bug, state follows the timer."""
 
 from __future__ import annotations
 
 import gc
+from pathlib import Path
 
 import pytest
 from PySide6.QtCore import QTimer
@@ -22,12 +23,24 @@ def test_icons_render_for_every_state(qapp, state: TrayState) -> None:  # type: 
         assert pm.width() == size
 
 
-def test_menu_has_quit_and_emits(qapp, qtbot) -> None:  # type: ignore[no-untyped-def]
+def test_menu_has_start_stop_and_quit(qapp, qtbot) -> None:  # type: ignore[no-untyped-def]
     tray = TrayIcon()
-    actions = [a.text() for a in tray.menu.actions()]
-    assert "Quit" in actions
+    actions = [a.text() for a in tray.menu.actions() if not a.isSeparator()]
+    assert actions == ["Start", "Quit"]
     with qtbot.waitSignal(tray.quit_requested, timeout=1000):
         tray.quit_action.trigger()
+    with qtbot.waitSignal(tray.toggle_requested, timeout=1000):
+        tray.toggle_action.trigger()
+    tray.set_running(True)
+    assert tray.toggle_action.text() == "Stop"
+
+
+def test_activation_reasons(qapp, qtbot) -> None:  # type: ignore[no-untyped-def]
+    tray = TrayIcon()
+    with qtbot.waitSignal(tray.popover_requested, timeout=1000):
+        tray.system_tray_icon.activated.emit(QSystemTrayIcon.ActivationReason.Trigger)
+    with qtbot.waitSignal(tray.toggle_requested, timeout=1000):
+        tray.system_tray_icon.activated.emit(QSystemTrayIcon.ActivationReason.MiddleClick)
 
 
 def test_set_state_changes_tooltip(qapp) -> None:  # type: ignore[no-untyped-def]
@@ -40,21 +53,19 @@ def test_set_state_changes_tooltip(qapp) -> None:  # type: ignore[no-untyped-def
     assert tray.system_tray_icon.toolTip() == "Not tracking"
 
 
-def test_bootstrap_refuses_without_tray(qapp, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]
+def test_bootstrap_refuses_without_tray(
+    qapp, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:  # type: ignore[no-untyped-def]
     shown: list[str] = []
     monkeypatch.setattr(QSystemTrayIcon, "isSystemTrayAvailable", staticmethod(lambda: False))
     monkeypatch.setattr(QMessageBox, "critical", staticmethod(lambda *a, **k: shown.append(a[1])))
-    qapp.tray = None
-    assert qapp.bootstrap() is False
+    assert qapp.bootstrap(tmp_path) is False
     assert shown == ["No system tray available"]
     assert qapp.tray is None
 
 
-def test_bootstrap_keeps_strong_reference_and_quits_cleanly(  # type: ignore[no-untyped-def]
-    qapp, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(QSystemTrayIcon, "isSystemTrayAvailable", staticmethod(lambda: True))
-    assert qapp.bootstrap() is True
+def test_bootstrap_keeps_strong_reference_and_quits_cleanly(booted_app) -> None:  # type: ignore[no-untyped-def]
+    qapp = booted_app
     tray = qapp.tray
     assert tray is not None
 
@@ -73,4 +84,21 @@ def test_bootstrap_keeps_strong_reference_and_quits_cleanly(  # type: ignore[no-
     qapp.exec()
     guard.stop()
     assert not timed_out, "Quit action did not stop the event loop"
-    tray.hide()
+
+
+def test_tray_follows_timer_state(booted_app) -> None:  # type: ignore[no-untyped-def]
+    app = booted_app
+    tray, svc, labels = app.tray, app.timer_service, app.label_service
+    from timetracker.core.models import Dimension
+
+    nike = labels.get_or_create(Dimension.CLIENT, "Nike")
+    work = labels.get_or_create(Dimension.TYPE, "Work")
+    assert tray.state is TrayState.IDLE
+    svc.start(nike.id, work.id)
+    assert tray.state is TrayState.RUNNING
+    assert tray.system_tray_icon.toolTip() == "0:00 · Work · Nike"
+    assert tray.toggle_action.text() == "Stop"
+    app.toggle_timer()  # middle-click / menu path
+    assert tray.state is TrayState.IDLE
+    assert tray.system_tray_icon.toolTip() == "Not tracking"
+    assert tray.toggle_action.text() == "Start"

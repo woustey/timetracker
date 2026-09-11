@@ -16,7 +16,6 @@ import ast
 from pathlib import Path
 
 import pytest
-from PySide6.QtWidgets import QSystemTrayIcon
 
 from tests.conftest import SOCKET_EVENTS
 
@@ -76,9 +75,10 @@ def test_no_network_imports(path: Path) -> None:
     assert not offenders, f"{path.relative_to(SRC)} imports {offenders}"
 
 
-def test_app_boot_opens_no_sockets(qapp, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]
-    monkeypatch.setattr(QSystemTrayIcon, "isSystemTrayAvailable", staticmethod(lambda: True))
-    assert qapp.bootstrap() is True
-    qapp.processEvents()
-    qapp.tray.hide()
+def test_app_boot_opens_no_sockets(booted_app) -> None:  # type: ignore[no-untyped-def]
+    booted_app.processEvents()
+    booted_app.timer_service.start()
+    booted_app.processEvents()
+    booted_app.timer_service.stop()
+    booted_app.processEvents()
     assert SOCKET_EVENTS == [], f"socket activity observed: {SOCKET_EVENTS}"
