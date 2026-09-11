@@ -1,0 +1,71 @@
+# Time Tracker — project invariants
+
+Tray-resident time tracker. Product requirements: `docs/PRD-time-tracker.md`
+(PRD-01, source of FR-/NFR- ids). Build document: `docs/PRD-time-tracker-qt.md`
+(PRD-02). Milestones are PRD-02 §13. These rules are settled; do not re-open them.
+
+## Architecture
+
+- `src/timetracker/core/` and `src/timetracker/data/` import **neither PySide6
+  nor anything from `ui/`**. `tests/test_layering.py` enforces this and must stay
+  green. `services/` may use Qt signals but no widgets. `ui/` knows Qt, no SQL.
+- Every service takes a `Clock` (`core/clock.py`) in its constructor.
+  Production uses `SystemClock`; tests use `FakeClock`. Never call
+  `datetime.now()` / `time.monotonic()` directly outside `SystemClock`.
+
+## Time and durations
+
+- Durations are measured with a **monotonic clock** (FR-208):
+  `clock.monotonic() - monotonic_start`, accumulated into `accrued_seconds`.
+- `duration_seconds` on an entry is **authoritative** and is **never derived from
+  the timestamps**. `started_at_utc` / `ended_at_utc` are chronology anchors only.
+- No monotonic value is ever persisted; `running_timer` stores `accrued_seconds`
+  plus a heartbeat copy (`heartbeat_accrued_sec`) that crash recovery uses.
+- `TimerService` is the only writer of the `running_timer` row and the only
+  creator of `STOPWATCH` entries.
+
+## Rounding
+
+- Rounding is applied **at export only** and **never mutates a stored record**
+  (FR-605, P2). Re-exporting with another increment yields a different file from
+  the same rows. Scope (per entry / per day×client×type group) is applied before
+  rounding.
+
+## Stack
+
+- Python 3.12+, PySide6 (Qt Widgets — **not QML**), stdlib `sqlite3` (WAL),
+  stdlib `zoneinfo` + `tzdata` on Windows.
+- **Four runtime dependencies total**: PySide6, openpyxl, tzdata (win32 only),
+  pyobjc-framework-Quartz (darwin only). Declared only once first used.
+  **Ask before adding a fifth.** Dev tools (pytest, pytest-qt, ruff, mypy) are
+  not runtime dependencies.
+- No AI features, no network calls, no telemetry (NFR-05/06).
+  `tests/test_no_network.py` enforces NFR-05.
+
+## Process
+
+- Implement only requirements marked **M** for the current milestone; skip S and C.
+- Where the spec is ambiguous or wrong, say so and ask — don't silently pick.
+  PRD-01 §15 lists the open questions.
+- Each milestone: plan → go → implement → tests (PRD-02 §11) → commit with the
+  milestone id in the subject (`M1: ...`) → report against §13 acceptance → stop.
+
+## Decisions taken (with the owner)
+
+- Repo is public; default branch `main`; plain `venv` + `pip`.
+- PRD-01 Q1: an entry may be saved with `client_id`/`type_id` NULL. Stop is
+  never blocked on a label (P5); the "mandatory labels" setting gates only the
+  Add Time matrix's Add button (FR-310).
+- Tray icons are painted at runtime with `QPainter` (no `.qrc` build step) until
+  real artwork exists.
+- NFR-05 test = static import scan of `src/` for network modules + a
+  `sys.addaudithook` on `socket.*` during an offscreen app boot.
+
+## Local commands
+
+```
+py -3.13 -m venv .venv && .venv\Scripts\pip install -e .[dev]
+.venv\Scripts\python -m pytest
+.venv\Scripts\ruff check . && .venv\Scripts\mypy
+.venv\Scripts\python -m timetracker
+```
