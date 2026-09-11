@@ -1,4 +1,8 @@
-"""Entry point: ``python -m timetracker`` or the ``timetracker`` console script."""
+"""Entry point: the ``timetracker`` GUI script, or ``pythonw -m timetracker``.
+
+``python -m timetracker`` also works but keeps a console attached — closing
+that console kills the tray app — so it is for debugging only.
+"""
 
 from __future__ import annotations
 
@@ -6,8 +10,11 @@ import sys
 
 
 def main(argv: list[str] | None = None) -> int:
+    from timetracker import crashlog
     from timetracker.app import App
+    from timetracker.data import paths
 
+    crashlog.install(paths.data_dir())
     app = App(sys.argv if argv is None else argv)
     if not app.bootstrap():
         return 1

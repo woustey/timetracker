@@ -23,8 +23,24 @@ Python 3.12+ required.
 python -m venv .venv
 .venv/Scripts/pip install -e .[dev]        # Windows
 # .venv/bin/pip install -e .[dev]          # macOS / Linux
-.venv/Scripts/python -m timetracker
 ```
+
+Launch (no console window):
+
+```
+.venv/Scripts/timetracker.exe              # Windows — a GUI script, built against pythonw
+.venv/Scripts/pythonw.exe -m timetracker   # Windows — equivalent
+# .venv/bin/timetracker                    # macOS / Linux
+```
+
+`python -m timetracker` also works but keeps a console attached; closing that
+console kills the tray app, so use it for debugging only. Uncaught exceptions
+are written to `timetracker.log` in the data directory (see below) so a
+console-less crash is never silent.
+
+Data lives in `%LOCALAPPDATA%\TimeTracker` (Windows),
+`~/Library/Application Support/TimeTracker` (macOS) or
+`$XDG_DATA_HOME/timetracker` (Linux); `TIMETRACKER_DATA_DIR` overrides it.
 
 ## Tests
 

@@ -22,7 +22,7 @@ dev = [
     "mypy>=1.11",
 ]
 
-[project.scripts]
+[project.gui-scripts]
 timetracker = "timetracker.__main__:main"
 
 [tool.setuptools.packages.find]
