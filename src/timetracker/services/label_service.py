@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QObject, Signal
 
+from timetracker.core.labels import near_duplicates
 from timetracker.core.models import Dimension, Label
 from timetracker.data.label_repo import LabelRepo
 
@@ -20,6 +21,13 @@ class LabelService(QObject):
 
     def get(self, dimension: Dimension, label_id: int) -> Label:
         return self._repos[dimension].get(label_id)
+
+    def exact(self, dimension: Dimension, name: str) -> Label | None:
+        return self._repos[dimension].find_by_name(name)
+
+    def near_duplicates(self, dimension: Dimension, name: str) -> list[Label]:
+        """Existing labels within edit distance 2 of *name* (FR-403), closest first."""
+        return near_duplicates(name, self._repos[dimension].list_all())
 
     def get_or_create(self, dimension: Dimension, name: str) -> Label:
         repo = self._repos[dimension]

@@ -4,12 +4,17 @@ A frameless ``Qt.Popup`` anchored to the tray icon and clamped to the screen.
 ``Qt.Popup`` gives dismiss-on-click-outside and Esc for free. Two states share
 one layout; widgets are shown or hidden per state rather than swapped.
 
-M2 scope: elapsed display, client/type selectors, Start/Stop, note while
-running, started-at, today's total. The Add Time button (M3), the three
-"continue" rows (FR-213, *could*) and the footer links (M5/M6) are absent.
+Two pages: the **stopwatch** page (elapsed display, client/type selectors,
+Start/Stop, note while running, started-at, today's total, an *Add Time*
+button) and the **matrix** page (§9.3). The mode is remembered across open/close
+*and* across launches (a setting), so an accidental Esc does not lose a
+half-composed entry and a matrix-first user lands on the matrix with one click. The three "continue"
+rows (FR-213, *could*) and the footer links (M5/M6) are absent.
 """
 
 from __future__ import annotations
+
+from enum import Enum
 
 from PySide6.QtCore import QEvent, QPoint, QRect, Qt, Signal
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
@@ -20,17 +25,28 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QStackedWidget,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from timetracker.core.duration import format_hm, format_hms
 from timetracker.core.models import Dimension, Label
+from timetracker.services.entry_service import EntryService
 from timetracker.services.label_service import LabelService
+from timetracker.services.settings_service import KEY_POPOVER_MODE, SettingsService
 from timetracker.services.timer_service import TimerService, TimerState
+from timetracker.ui.quickadd.matrix import Matrix
 
 POPOVER_WIDTH = 380
+MATRIX_WIDTH = 640
 _NO_LABEL = "—"
+
+
+class PopoverMode(Enum):
+    STOPWATCH = "stopwatch"
+    MATRIX = "matrix"
 
 
 class LabelCombo(QComboBox):
@@ -91,6 +107,8 @@ class Popover(QWidget):
         self,
         timer: TimerService,
         labels: LabelService,
+        entries: EntryService,
+        settings: SettingsService,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(
@@ -101,8 +119,18 @@ class Popover(QWidget):
         )
         self._timer = timer
         self._labels = labels
-        self.setFixedWidth(POPOVER_WIDTH)
+        self._entries = entries
+        self._settings = settings
+        self._mode = _stored_mode(settings)
+        self._last_anchor = QRect()
         self.setObjectName("popover")
+        self.pages = QStackedWidget()
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(self.pages)
+
+        # -- stopwatch page --------------------------------------------------
+        self.stopwatch_page = QWidget()
 
         self.elapsed = QLabel("0:00:00")
         mono = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
@@ -123,6 +151,11 @@ class Popover(QWidget):
         self.start_stop.setDefault(True)
         self.start_stop.setMinimumHeight(36)
 
+        self.add_time = QPushButton("Add Time…")
+        self.add_time.setAccessibleName("Add time")
+        self.add_time.setMinimumHeight(30)
+        self.add_time.clicked.connect(lambda: self.set_mode(PopoverMode.MATRIX))
+
         self.started_at = QLabel("")
         self.started_at.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.today = QLabel("")
@@ -138,12 +171,33 @@ class Popover(QWidget):
         footer.addStretch(1)
         footer.addWidget(self.today)
 
-        root = QVBoxLayout(self)
+        root = QVBoxLayout(self.stopwatch_page)
         root.setContentsMargins(16, 12, 16, 12)
         root.addWidget(self.elapsed)
         root.addLayout(form)
         root.addWidget(self.start_stop)
+        root.addWidget(self.add_time)
         root.addLayout(footer)
+        self.pages.addWidget(self.stopwatch_page)
+
+        # -- matrix page -----------------------------------------------------
+        self.matrix_page = QWidget()
+        self.back_button = QToolButton()
+        self.back_button.setText("‹ Timer")
+        self.back_button.setAccessibleName("Back to timer")
+        self.back_button.setAutoRaise(True)
+        self.back_button.clicked.connect(lambda: self.set_mode(PopoverMode.STOPWATCH))
+        self.matrix = Matrix(entries, labels, settings)
+        self.matrix.dismiss_requested.connect(self.hide)
+        matrix_layout = QVBoxLayout(self.matrix_page)
+        matrix_layout.setContentsMargins(8, 6, 8, 0)
+        matrix_layout.setSpacing(0)
+        matrix_layout.addWidget(self.back_button, 0, Qt.AlignmentFlag.AlignLeft)
+        matrix_layout.addWidget(self.matrix)
+        self.pages.addWidget(self.matrix_page)
+        entries.entries_changed.connect(lambda _uuids: self._refresh_today())
+        timer.stopped.connect(lambda _entry: self.matrix.refresh_totals())
+        self._apply_mode()
 
         self.start_stop.clicked.connect(self._on_start_stop)
         self.client.activated.connect(self._on_label_edited)
@@ -158,10 +212,36 @@ class Popover(QWidget):
 
         self._apply_state(timer.state)
 
+    # -- mode ----------------------------------------------------------------
+
+    @property
+    def mode(self) -> PopoverMode:
+        return self._mode
+
+    def set_mode(self, mode: PopoverMode) -> None:
+        if mode is self._mode:
+            return
+        self._mode = mode
+        self._settings.set(KEY_POPOVER_MODE, mode.value)
+        self._apply_mode()
+        if self.isVisible():
+            self.show_near(self._last_anchor)
+
+    def _apply_mode(self) -> None:
+        if self._mode is PopoverMode.MATRIX:
+            self.pages.setCurrentWidget(self.matrix_page)
+            self.setFixedWidth(MATRIX_WIDTH)
+            self.matrix.prepare()
+        else:
+            self.pages.setCurrentWidget(self.stopwatch_page)
+            self.setFixedWidth(POPOVER_WIDTH)
+            self.start_stop.setFocus()
+
     # -- showing -------------------------------------------------------------
 
     def show_near(self, anchor: QRect) -> None:
         """Open next to *anchor* (tray icon geometry), clamped to that screen (§8.1)."""
+        self._last_anchor = QRect(anchor)
         self.refresh()
         self.adjustSize()
         size = self.size()
@@ -182,7 +262,10 @@ class Popover(QWidget):
         self.show()
         self.raise_()
         self.activateWindow()
-        self.start_stop.setFocus()
+        if self._mode is PopoverMode.MATRIX:
+            self.matrix.prepare()
+        else:
+            self.start_stop.setFocus()
 
     def refresh(self) -> None:
         """Re-read labels, defaults and totals; called before every show."""
@@ -198,6 +281,9 @@ class Popover(QWidget):
             self.type.reload(type_id)
             self.note.clear()
         self._on_tick(self._timer.elapsed_seconds())
+        self._refresh_today()
+
+    def _refresh_today(self) -> None:
         self.today.setText(f"Today: {format_hm(self._timer.today_total_seconds())}")
 
     # -- state ---------------------------------------------------------------
@@ -213,7 +299,7 @@ class Popover(QWidget):
             self.started_at.setText(f"Started {self._timer.started_local_time()}")
         else:
             self.elapsed.setText("0:00:00")
-        self.today.setText(f"Today: {format_hm(self._timer.today_total_seconds())}")
+        self._refresh_today()
 
     def _on_tick(self, seconds: int) -> None:
         self.elapsed.setText(format_hms(seconds))
@@ -248,3 +334,10 @@ class Popover(QWidget):
     def hideEvent(self, event: QEvent) -> None:  # noqa: N802 - Qt override
         super().hideEvent(event)
         self.dismissed.emit()
+
+
+def _stored_mode(settings: SettingsService) -> PopoverMode:
+    try:
+        return PopoverMode(str(settings.get(KEY_POPOVER_MODE)))
+    except ValueError:
+        return PopoverMode.STOPWATCH

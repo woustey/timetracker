@@ -16,9 +16,11 @@ from timetracker.ui.popover import Popover
 
 
 @pytest.fixture
-def popover(qtbot, service: TimerService, labels: LabelService) -> Popover:  # type: ignore[no-untyped-def]
+def popover(
+    qtbot, service: TimerService, labels: LabelService, entry_service, settings_service
+) -> Popover:  # type: ignore[no-untyped-def]
     labels.ensure_seed_types()
-    w = Popover(service, labels)
+    w = Popover(service, labels, entry_service, settings_service)
     qtbot.addWidget(w)
     return w
 
@@ -151,3 +153,58 @@ def test_new_labels_appear_without_reopen(popover: Popover, labels: LabelService
     labels.get_or_create(Dimension.CLIENT, "Reebok")
     assert popover.client.count() == before + 1
     assert popover.client.findText("Reebok") > 0
+
+
+def test_mode_switch_and_add_time_button(popover: Popover, qtbot) -> None:  # type: ignore[no-untyped-def]
+    from timetracker.ui.popover import MATRIX_WIDTH, POPOVER_WIDTH, PopoverMode
+
+    assert popover.mode is PopoverMode.STOPWATCH
+    assert popover.width() == POPOVER_WIDTH
+    qtbot.mouseClick(popover.add_time, Qt.MouseButton.LeftButton)
+    assert popover.mode is PopoverMode.MATRIX
+    assert popover.pages.currentWidget() is popover.matrix_page
+    assert popover.width() == MATRIX_WIDTH
+    qtbot.mouseClick(popover.back_button, Qt.MouseButton.LeftButton)
+    assert popover.mode is PopoverMode.STOPWATCH
+    assert popover.width() == POPOVER_WIDTH
+
+
+def test_matrix_mode_persists_across_dismiss(popover: Popover, qtbot) -> None:  # type: ignore[no-untyped-def]
+    from PySide6.QtGui import QGuiApplication
+
+    from timetracker.ui.popover import PopoverMode
+
+    popover.set_mode(PopoverMode.MATRIX)
+    popover.matrix.time_chips[2].click()  # +30
+    anchor = QRect(
+        QGuiApplication.primaryScreen().availableGeometry().center(), QRect(0, 0, 16, 16).size()
+    )
+    popover.show_near(anchor)
+    qtbot.waitExposed(popover)
+    with qtbot.waitSignal(popover.dismissed, timeout=1000):
+        qtbot.keyClick(popover.matrix, Qt.Key.Key_Escape)
+    assert not popover.isVisible()
+    assert popover.mode is PopoverMode.MATRIX
+    assert popover.matrix.pending_seconds == 1800  # not lost by an accidental Esc
+
+
+def test_last_mode_is_remembered_across_launches(
+    popover: Popover,
+    service: TimerService,
+    labels: LabelService,
+    entry_service,
+    settings_service,
+    qtbot,
+) -> None:  # type: ignore[no-untyped-def]
+    from timetracker.ui.popover import PopoverMode
+
+    popover.set_mode(PopoverMode.MATRIX)
+    # A fresh popover over the same settings (what a relaunch does) lands on the matrix.
+    again = Popover(service, labels, entry_service, settings_service)
+    qtbot.addWidget(again)
+    assert again.mode is PopoverMode.MATRIX
+    assert again.pages.currentWidget() is again.matrix_page
+    again.set_mode(PopoverMode.STOPWATCH)
+    third = Popover(service, labels, entry_service, settings_service)
+    qtbot.addWidget(third)
+    assert third.mode is PopoverMode.STOPWATCH

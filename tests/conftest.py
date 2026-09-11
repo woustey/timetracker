@@ -132,3 +132,19 @@ def service(qapp: Any, clock: Any, timers: Any, entries: Any, clients: Any, type
     from timetracker.services.timer_service import TimerService
 
     return TimerService(clock, timers, entries, clients, types)
+
+
+@pytest.fixture
+def settings_service(settings: Any) -> Any:
+    from timetracker.services.settings_service import SettingsService
+
+    return SettingsService(settings)
+
+
+@pytest.fixture
+def entry_service(
+    qapp: Any, clock: Any, entries: Any, clients: Any, types: Any, settings_service: Any
+) -> Any:
+    from timetracker.services.entry_service import EntryService
+
+    return EntryService(clock, entries, clients, types, settings_service)

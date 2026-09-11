@@ -18,13 +18,16 @@ from timetracker.data.db import connect
 from timetracker.data.entry_repo import EntryRepo
 from timetracker.data.label_repo import LabelRepo
 from timetracker.data.migrate import migrate
+from timetracker.data.settings_repo import SettingsRepo
 from timetracker.data.timer_repo import TimerRepo
 from timetracker.instance_lock import InstanceLock
+from timetracker.services.entry_service import EntryService
 from timetracker.services.label_service import LabelService
+from timetracker.services.settings_service import SettingsService
 from timetracker.services.timer_service import TimerService, TimerState
 from timetracker.ui.dialogs.recovery import RecoveryChoice, RecoveryDialog
 from timetracker.ui.icons import TrayState
-from timetracker.ui.popover import Popover
+from timetracker.ui.popover import Popover, PopoverMode
 from timetracker.ui.tray import TrayIcon
 
 _NO_TRAY_TEXT = (
@@ -54,6 +57,8 @@ class App(QApplication):
         self.popover: Popover | None = None
         self.timer_service: TimerService | None = None
         self.label_service: LabelService | None = None
+        self.entry_service: EntryService | None = None
+        self.settings_service: SettingsService | None = None
         self.clock: Clock | None = None
         self._conn: sqlite3.Connection | None = None
         self._lock: InstanceLock | None = None
@@ -98,12 +103,19 @@ class App(QApplication):
 
         self.label_service = LabelService(clients, types, self)
         self.label_service.ensure_seed_types()  # FR-409
+        self.settings_service = SettingsService(SettingsRepo(conn), self)
         self.timer_service = TimerService(self.clock, timers, entries, clients, types, self)
+        self.entry_service = EntryService(
+            self.clock, entries, clients, types, self.settings_service, self
+        )
 
         self.tray = TrayIcon(self)
-        self.popover = Popover(self.timer_service, self.label_service)
+        self.popover = Popover(
+            self.timer_service, self.label_service, self.entry_service, self.settings_service
+        )
 
         self.tray.popover_requested.connect(self.show_popover)
+        self.tray.add_time_requested.connect(self.show_add_time)
         self.tray.toggle_requested.connect(self.toggle_timer)
         self.tray.quit_requested.connect(self.request_quit)
         self.timer_service.state_changed.connect(self._on_state_changed)
@@ -140,6 +152,8 @@ class App(QApplication):
         self.popover = None
         self.timer_service = None
         self.label_service = None
+        self.entry_service = None
+        self.settings_service = None
 
     # -- actions -------------------------------------------------------------
 
@@ -153,6 +167,17 @@ class App(QApplication):
             self.popover.hide()
             return
         self.popover.show_near(self.tray.geometry())
+
+    def show_add_time(self) -> None:
+        """FR-103 *Add Time…*: open the popover straight onto the matrix."""
+        if self.popover is None or self.tray is None:
+            return
+        if self.timer_service is not None and self.timer_service.pending_recovery is not None:
+            self.offer_recovery()
+            return
+        self.popover.set_mode(PopoverMode.MATRIX)
+        if not self.popover.isVisible():
+            self.popover.show_near(self.tray.geometry())
 
     def toggle_timer(self) -> None:
         svc = self.timer_service

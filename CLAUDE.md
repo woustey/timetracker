@@ -70,6 +70,17 @@ Tray-resident time tracker. Product requirements: `docs/PRD-time-tracker.md`
   `QTimeZone.systemTimeZoneId()` because the stdlib cannot name the zone on
   Windows.
 - Label chip order: pinned → most recently used → creation order.
+- Popover width: 380 px on the stopwatch page, 640 px on the matrix page. The
+  last-used page is persisted (`popover.last_mode`) so the matrix is one click
+  from the tray; without that the ≤ 4-click budget (G1, M3 acceptance) fails.
+- Matrix keyboard digits resolve from the *physical* top-row key (native
+  virtual key / scan code) so Shift+1..5 subtracts on AZERTY too.
+- FR-403 near-duplicate offer: edit distance ≤ 2, only when the shorter name
+  is ≥ 4 chars (PRD-01 Q6).
+- Esc in the matrix dismisses the popover (FR-315) and keeps the pending
+  total; the "‹ Timer" button switches pages.
+- Anchoring arithmetic is done in UTC: adding a timedelta to a zone-aware
+  local datetime is wall-clock arithmetic and drops an hour across DST.
 
 ## Local commands
 
