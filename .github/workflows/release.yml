@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install Qt runtime libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 libgl1 libopengl0 libxkbcommon-x11-0 libxcb-cursor0 \
+            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libdbus-1-3 \
+            libfontconfig1 libfuse2 patchelf ccache
+
+      - name: Install
+        run: python -m pip install -e .[dev,build]
+
+      - name: Version
+        id: version
+        shell: bash
+        run: |
+          echo "version=$(python -c 'import tomllib;print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')" >> "$GITHUB_OUTPUT"
+
+      - name: Icons (.icns on macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p icon.iconset
+          for s in 16 32 128 256; do cp src/timetracker/resources/icon-$s.png icon.iconset/icon_${s}x${s}.png; done
+          cp src/timetracker/resources/icon-32.png icon.iconset/icon_16x16@2x.png
+          cp src/timetracker/resources/icon-64.png icon.iconset/icon_32x32@2x.png
+          cp src/timetracker/resources/icon-256.png icon.iconset/icon_128x128@2x.png
+          iconutil -c icns icon.iconset -o src/timetracker/resources/icon.icns
+
+      - name: Build (Nuitka standalone)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python scripts/build_release.py
+
+      - name: Smoke test the build (boots, idles 3 s, exits 0)
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+          TIMETRACKER_MEASURE_BOOT: "3"
+          TIMETRACKER_ASSUME_TRAY: "1"
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then exe="dist/release/windows/timetracker.dist/timetracker.exe";
+          elif [ "$RUNNER_OS" = "macOS" ]; then exe="dist/release/macos/Time Tracker.app/Contents/MacOS/timetracker";
+          else exe="dist/release/linux/timetracker.dist/timetracker"; fi
+          export TIMETRACKER_DATA_DIR="$RUNNER_TEMP/tt-smoke"
+          "$exe"
+
+      - name: Installer (Windows, Inno Setup)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.version.outputs.version }} /DSourceDir=..\dist\release\windows\timetracker.dist installer\windows.iss
+          Compress-Archive -Path dist\release\windows\timetracker.dist\* -DestinationPath dist\installer\TimeTracker-${{ steps.version.outputs.version }}-windows-portable.zip
+
+      - name: DMG (macOS)
+        if: runner.os == 'macOS'
+        run: installer/macos/make_dmg.sh "dist/release/macos/Time Tracker.app" ${{ steps.version.outputs.version }}
+
+      - name: AppImage (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          installer/linux/make_appimage.sh dist/release/linux/timetracker.dist ${{ steps.version.outputs.version }}
+          tar -C dist/release/linux -czf dist/installer/TimeTracker-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz timetracker.dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.os }}
+          path: dist/installer/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          body_path: docs/RELEASE-NOTES.md
+          draft: false
+          prerelease: false

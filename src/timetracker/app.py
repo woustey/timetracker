@@ -7,9 +7,10 @@ import sqlite3
 from pathlib import Path
 
 from PySide6.QtCore import QFileSystemWatcher, QProcess, QTimer, QTimeZone
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 
-from timetracker import __version__
+from timetracker import __version__, resources
 from timetracker.core.clock import Clock, SystemClock
 from timetracker.core.duration import format_hm
 from timetracker.core.errors import SchemaTooNewError
@@ -41,7 +42,7 @@ from timetracker.services.settings_service import (
 )
 from timetracker.services.timer_service import TimerService, TimerState
 from timetracker.ui import formatting
-from timetracker.ui.dialogs.first_run import AutostartOfferDialog
+from timetracker.ui.dialogs.first_run import FirstRunDialog
 from timetracker.ui.dialogs.idle_prompt import IdlePromptDialog
 from timetracker.ui.dialogs.long_running import LongRunningDialog
 from timetracker.ui.dialogs.recovery import RecoveryChoice, RecoveryDialog
@@ -73,6 +74,9 @@ class App(QApplication):
         self.setOrganizationName("timetracker")
         # Otherwise closing any window kills a tray app (PRD-02 §8.1).
         self.setQuitOnLastWindowClosed(False)
+        icon_file = resources.icon_path()
+        if icon_file is not None:
+            self.setWindowIcon(QIcon(str(icon_file)))
 
         # Strong references: the tray must outlive every local scope.
         self.tray: TrayIcon | None = None
@@ -88,7 +92,7 @@ class App(QApplication):
         self.log_window: LogWindow | None = None
         self.settings_dialog: SettingsDialog | None = None
         self.theme = ThemeManager(self, self)
-        self._first_run_dialog: AutostartOfferDialog | None = None
+        self._first_run_dialog: FirstRunDialog | None = None
         self._relaunching = False
         self._entry_repo: EntryRepo | None = None
         self.clock: Clock | None = None
@@ -195,7 +199,7 @@ class App(QApplication):
             self.tray.set_state(TrayState.ATTENTION, "Unsaved session recovered — click to resolve")
             QTimer.singleShot(0, self.offer_recovery)
         elif not self.settings_service.autostart_offered:
-            QTimer.singleShot(400, self.offer_autostart)  # FR-108: once, after the tray is up
+            QTimer.singleShot(400, self.offer_first_run)  # once, after the tray is up
         return True
 
     def shutdown(self) -> None:
@@ -306,24 +310,26 @@ class App(QApplication):
         self.settings_dialog.raise_()
         self.settings_dialog.activateWindow()
 
-    def offer_autostart(self) -> None:
-        """FR-108: offered once on first run; the answer (either way) is remembered."""
+    def offer_first_run(self) -> None:
+        """NFR-09 / FR-409 / FR-108: one welcome screen, once; then the popover opens itself."""
         if self.settings_service is None or self._first_run_dialog is not None:
             return
         provider = autostart_provider()
         self.settings_service.set(KEY_AUTOSTART_OFFERED, True)
-        if not hasattr(provider, "set_enabled"):
-            return  # nothing to offer on this platform
-        dialog = AutostartOfferDialog()
+        dialog = FirstRunDialog(autostart_available=hasattr(provider, "set_enabled"))
 
-        def answered(yes: bool) -> None:
-            if yes:
+        def finished(names: list[str], start_at_login: bool) -> None:
+            if self.label_service is not None:
+                for name in names:
+                    self.label_service.get_or_create(Dimension.CLIENT, name)
+            if start_at_login and hasattr(provider, "set_enabled"):
                 try:
-                    provider.set_enabled(True, launch_command())  # type: ignore[union-attr]
+                    provider.set_enabled(True, launch_command())
                 except OSError as exc:
                     log().warning("Could not enable start at login: %s", exc)
+            QTimer.singleShot(150, self.show_popover)
 
-        dialog.answered.connect(answered)
+        dialog.finished_setup.connect(finished)
         dialog.finished.connect(lambda _code: setattr(self, "_first_run_dialog", None))
         self._first_run_dialog = dialog
         dialog.show()

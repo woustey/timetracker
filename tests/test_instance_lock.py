@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from timetracker.instance_lock import InstanceLock
@@ -60,7 +61,15 @@ def test_lock_survives_a_hard_kill_of_the_holder(tmp_path: Path) -> None:
     assert second.acquire() is False
     holder.kill()
     holder.wait(timeout=30)
-    assert second.acquire() is True
+    # The venv python.exe is a launcher: its real child dies via a job object a
+    # few milliseconds after the launcher, so poll briefly rather than race it.
+    deadline = time.monotonic() + 5
+    acquired = False
+    while not acquired and time.monotonic() < deadline:
+        acquired = second.acquire()
+        if not acquired:
+            time.sleep(0.05)
+    assert acquired
     second.release()
 
 

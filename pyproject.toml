@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "timetracker"
-version = "0.0.1"
+version = "1.0.0"
 description = "Tray-resident, local-only time tracker with a stopwatch and a retroactive Add Time matrix."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -23,12 +23,19 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
 ]
+build = [
+    "nuitka>=2.4",
+    "pyinstaller>=6.6",
+]
 
 [project.gui-scripts]
 timetracker = "timetracker.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"timetracker.resources" = ["*.png", "*.ico", "*.icns"]
 
 [tool.ruff]
 line-length = 100

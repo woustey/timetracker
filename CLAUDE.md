@@ -130,6 +130,19 @@ Tray-resident time tracker. Product requirements: `docs/PRD-time-tracker.md`
   boot 0.68 s (real tray), RSS 75 MB, idle CPU 0 ticks / 20 s.
 - `EntryRepo.summary` uses `NOT INDEXED` when a note search is present: the
   planner would otherwise walk the covering index and look up every row.
+- Packaging (M7): `scripts/build_release.py` (Nuitka standalone; openpyxl and
+  tzdata forced in because they are lazy/data; Qt stays dynamic for LGPL §4d),
+  `scripts/build_dev.py` (PyInstaller onedir, never onefile), Inno Setup
+  script in `installer/`, AppImage/DMG scripts, tag-triggered
+  `.github/workflows/release.yml`. Icons are rendered files under
+  `src/timetracker/resources/` (`scripts/make_icons.py`); the tray still paints
+  at runtime. Binaries are unsigned; `docs/RELEASE-CHECKLIST.md` §8 says what
+  to buy.
+- First run (M7): one welcome dialog — clients (one per line → chips), start at
+  login — then the popover opens itself. `app.autostart_offered` records it.
+- Docs to keep current when behaviour changes: `README.md`,
+  `docs/DATA-FORMAT.md` (NFR-10), `docs/RELEASE-CHECKLIST.md`,
+  `docs/RELEASE-NOTES.md`, `docs/MILESTONES.md` (the build history).
 
 ## Launching on Windows
 

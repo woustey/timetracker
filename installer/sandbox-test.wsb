@@ -1,0 +1,15 @@
+<Configuration>
+  <!-- Windows Sandbox: a fresh Windows every launch. Double-click this file, then
+       inside the sandbox open the mapped folder on the Desktop and run the installer.
+       Time the first entry (NFR-09: under 60 s, no documentation). -->
+  <MappedFolders>
+    <MappedFolder>
+      <HostFolder>C:\Users\ws\Projects\timetracker\dist\installer</HostFolder>
+      <SandboxFolder>C:\Users\WDAGUtilityAccount\Desktop\TimeTrackerInstaller</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+  <Networking>Disable</Networking>
+  <ClipboardRedirection>true</ClipboardRedirection>
+  <MemoryInMB>4096</MemoryInMB>
+</Configuration>
