@@ -1,0 +1,39 @@
+"""Date-range presets for the log filter (FR-503). Pure; Monday-first weeks."""
+
+from __future__ import annotations
+
+from datetime import date, timedelta
+from enum import Enum
+
+
+class DatePreset(Enum):
+    TODAY = "Today"
+    THIS_WEEK = "This week"
+    LAST_WEEK = "Last week"
+    THIS_MONTH = "This month"
+    LAST_MONTH = "Last month"
+    ALL = "All time"
+    CUSTOM = "Custom range"
+
+
+def preset_range(preset: DatePreset, today: date) -> tuple[date | None, date | None]:
+    if preset is DatePreset.TODAY:
+        return today, today
+    if preset is DatePreset.THIS_WEEK:
+        start = today - timedelta(days=today.weekday())
+        return start, start + timedelta(days=6)
+    if preset is DatePreset.LAST_WEEK:
+        start = today - timedelta(days=today.weekday() + 7)
+        return start, start + timedelta(days=6)
+    if preset is DatePreset.THIS_MONTH:
+        start = today.replace(day=1)
+        return start, _month_end(start)
+    if preset is DatePreset.LAST_MONTH:
+        start = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
+        return start, _month_end(start)
+    return None, None
+
+
+def _month_end(first: date) -> date:
+    nxt = (first.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return nxt - timedelta(days=1)

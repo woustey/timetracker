@@ -1,0 +1,16 @@
+﻿Date;Start;End;Duration (decimal hours);Duration (h:mm);Client;Type;Record method;Note
+2026-09-08;09:00;09:02;0.1;0:06;Nike;Email/Chat;Add Time;Réponse à Cédric
+2026-09-08;09:10;09:12;0.1;0:06;Nike;Email/Chat;Add Time;
+2026-09-08;09:20;09:22;0.1;0:06;Nike;Email/Chat;Add Time;"Said ""ok""; moving on"
+2026-09-08;10:00;10:44;0.8;0:48;ASICS;Meeting/Call;Start-Stop;Kick-off
+2026-09-08;12:00;13:30;1.5;1:30;ASICS;Work;Add Time;Drafting
+2026-09-09;09:00;09:17;0.3;0:18;;;Start-Stop;unlabelled
+2026-09-09;11:00;11:26;0.5;0:30;Nike;Work;Start-Stop;"multi
+line"
+
+Total (h:mm);3:24
+Total (decimal hours);3.4
+Rounding;6 minutes, rounded up per entry
+Filter;all entries
+Exported;2026-09-11 12:00:00 CEST
+Application;Time Tracker 0.0.1

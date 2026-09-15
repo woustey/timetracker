@@ -24,6 +24,7 @@ from timetracker.data.timer_repo import TimerRepo
 from timetracker.instance_lock import InstanceLock
 from timetracker.platform.factory import idle_provider
 from timetracker.services.entry_service import EntryService
+from timetracker.services.export_service import ExportService
 from timetracker.services.idle_monitor import IdleMonitor, IdleOutcome, IdleSpan
 from timetracker.services.label_service import LabelService
 from timetracker.services.power_monitor import PowerMonitor
@@ -37,6 +38,7 @@ from timetracker.ui.dialogs.idle_prompt import IdlePromptDialog
 from timetracker.ui.dialogs.long_running import LongRunningDialog
 from timetracker.ui.dialogs.recovery import RecoveryChoice, RecoveryDialog
 from timetracker.ui.icons import TrayState
+from timetracker.ui.log.window import LogWindow
 from timetracker.ui.popover import Popover, PopoverMode
 from timetracker.ui.tray import TrayIcon
 
@@ -71,6 +73,9 @@ class App(QApplication):
         self.settings_service: SettingsService | None = None
         self.idle_monitor: IdleMonitor | None = None
         self.power_monitor: PowerMonitor | None = None
+        self.export_service: ExportService | None = None
+        self.log_window: LogWindow | None = None
+        self._entry_repo: EntryRepo | None = None
         self.clock: Clock | None = None
         self._conn: sqlite3.Connection | None = None
         self._lock: InstanceLock | None = None
@@ -122,6 +127,8 @@ class App(QApplication):
         self.entry_service = EntryService(
             self.clock, entries, clients, types, self.settings_service, self
         )
+        self.export_service = ExportService(self.clock, db_file, self)
+        self._entry_repo = entries
 
         self.tray = TrayIcon(self)
         self.popover = Popover(
@@ -130,6 +137,8 @@ class App(QApplication):
 
         self.tray.popover_requested.connect(self.show_popover)
         self.tray.add_time_requested.connect(self.show_add_time)
+        self.tray.open_log_requested.connect(self.show_log)
+        self.popover.open_log_requested.connect(self.show_log)
         self.tray.toggle_requested.connect(self.toggle_timer)
         self.tray.quit_requested.connect(self.request_quit)
         self.timer_service.state_changed.connect(self._on_state_changed)
@@ -185,6 +194,11 @@ class App(QApplication):
                 dialog.close()
         self._idle_dialog = None
         self._long_running_dialog = None
+        if self.log_window is not None:
+            self.log_window.close()
+            self.log_window = None
+        self.export_service = None
+        self._entry_repo = None
         if self._conn is not None:
             self._conn.close()
             self._conn = None
@@ -213,6 +227,36 @@ class App(QApplication):
             self.popover.hide()
             return
         self.popover.show_near(self.tray.geometry())
+
+    def show_log(self) -> None:
+        """FR-103 *Open log…*: one window, re-raised if already open."""
+        if self.log_window is None:
+            if (
+                self.clock is None
+                or self._entry_repo is None
+                or self.entry_service is None
+                or self.label_service is None
+                or self.settings_service is None
+                or self.export_service is None
+            ):
+                return
+            self.log_window = LogWindow(
+                self.clock,
+                self._entry_repo,
+                self.entry_service,
+                self.label_service,
+                self.settings_service,
+                self.export_service,
+            )
+            self.log_window.closed.connect(self._on_log_closed)
+        self.log_window.show()
+        self.log_window.raise_()
+        self.log_window.activateWindow()
+
+    def _on_log_closed(self) -> None:
+        if self.log_window is not None:
+            self.log_window.deleteLater()
+            self.log_window = None
 
     def show_add_time(self) -> None:
         """FR-103 *Add Time…*: open the popover straight onto the matrix."""

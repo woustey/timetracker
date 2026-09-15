@@ -96,7 +96,7 @@ def test_constraints(entries: EntryRepo, conn: sqlite3.Connection) -> None:
         conn.execute(
             "INSERT INTO entry (uuid, started_at_utc, ended_at_utc, tz_name, local_date, "
             "duration_seconds, record_method, created_at, modified_at) "
-            "VALUES ('u2', 'x', 'x', 'UTC', '2026-01-01', 5, 'MANUAL', 'x', 'x')"
+            "VALUES ('u2', 'x', 'x', 'UTC', '2026-01-01', 5, 'TELEPATHY', 'x', 'x')"
         )
     with pytest.raises(sqlite3.IntegrityError):  # FK to a client that does not exist
         entries.insert(_new(t0, 1, client_id=12345))
@@ -206,3 +206,68 @@ def test_session_log_view(entries: EntryRepo, clients: LabelRepo, conn: sqlite3.
         (None, "Add Time", 300),
         ("Nike", "Start-Stop", 1800),
     ]
+
+
+# -- M5 additions ----------------------------------------------------------------
+
+
+def test_sorting_in_sql_and_export_rows_join(
+    entries: EntryRepo, clients: LabelRepo, types: LabelRepo
+) -> None:
+    nike = clients.create("Nike")
+    zed = clients.create("Zed Corp")
+    work = types.create("Work")
+    day = datetime(2026, 9, 8, 8, 0, tzinfo=UTC)
+    a = entries.insert(_new(day, 45, client_id=zed.id, type_id=work.id, note="b-note"))
+    b = entries.insert(_new(day + timedelta(hours=1), 10, client_id=nike.id, note="a-note"))
+    c = entries.insert(_new(day + timedelta(hours=2), 30))  # unlabelled
+
+    by_dur = [e.id for e in entries.query(sort_by="duration_seconds", newest_first=False)]
+    assert by_dur == [b.id, c.id, a.id]
+    by_client = [e.id for e in entries.query(sort_by="client", newest_first=False)]
+    assert by_client == [b.id, a.id, c.id]  # NULL client sorts last
+    by_client_desc = [e.id for e in entries.query(sort_by="client", newest_first=True)]
+    assert by_client_desc == [a.id, b.id, c.id]  # ...in both directions
+    with pytest.raises(ValidationError):
+        entries.query(sort_by="id; DROP TABLE entry")
+
+    rows = entries.export_rows(newest_first=False)
+    assert [(r.client_name, r.type_name) for r in rows] == [
+        ("Zed Corp", "Work"),
+        ("Nike", None),
+        (None, None),
+    ]
+
+
+def test_totals_by_dimension(entries: EntryRepo, clients: LabelRepo, types: LabelRepo) -> None:
+    from timetracker.core.models import Dimension
+
+    nike = clients.create("Nike")
+    work = types.create("Work")
+    day = datetime(2026, 9, 8, 8, 0, tzinfo=UTC)
+    entries.insert(_new(day, 10, client_id=nike.id, type_id=work.id))
+    entries.insert(_new(day + timedelta(hours=1), 25, client_id=nike.id))
+    entries.insert(_new(day + timedelta(hours=2), 5))
+    by_client = entries.totals_by(Dimension.CLIENT)
+    assert [(t.name, t.seconds, t.count) for t in by_client] == [
+        ("Nike", 35 * 60, 2),
+        (None, 300, 1),
+    ]
+    by_type = entries.totals_by(Dimension.TYPE, EntryFilter(client_id=nike.id))
+    assert [(t.name, t.seconds) for t in by_type] == [(None, 25 * 60), ("Work", 10 * 60)]
+
+
+def test_overlapping_ids_in_sql_matches_pure_oracle(entries: EntryRepo) -> None:
+    from timetracker.core.consistency import overlapping_ids
+
+    day = datetime(2026, 9, 8, 9, 0, tzinfo=UTC)
+    a = entries.insert(_new(day, 30))
+    b = entries.insert(_new(day + timedelta(minutes=20), 30))
+    entries.insert(_new(day + timedelta(minutes=50), 10))  # touching, not overlapping
+    d = entries.insert(_new(day + timedelta(hours=2), 30))
+    e = entries.insert(_new(day + timedelta(hours=2, minutes=5), 1))
+    entries.insert(_new(day + timedelta(days=1), 60))
+    expected = {a.id, b.id, d.id, e.id}
+    assert entries.overlapping_ids() == expected
+    assert entries.overlapping_ids() == overlapping_ids(entries.query())
+    assert entries.overlapping_ids(EntryFilter(date_from=date(2026, 9, 9))) == set()

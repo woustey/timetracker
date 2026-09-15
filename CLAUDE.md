@@ -93,6 +93,25 @@ Tray-resident time tracker. Product requirements: `docs/PRD-time-tracker.md`
   `Unavailable(reason)`.
 - An unanswered idle prompt stays outstanding (FR-210): tray shows the
   attention badge and a tray click re-raises the dialog instead of the popover.
+- Log filtering and sorting are SQL (`EntryRepo.export_rows`: filter/sort/limit
+  first, join names onto the page; label sort via a `CASE` over ids), not a
+  `QSortFilterProxyModel` — a Python proxy over 50 000 rows misses NFR-04. The
+  model pages with `fetchMore`; totals come from one grouped scan
+  (`EntryRepo.summary`, covering index `idx_entry_totals`, schema v2). The
+  overlap pass (FR-508) runs on a zero-timer after the reset paints.
+- Edit policy (FR-505): duration edit keeps start and moves end; start/date
+  edit shifts both anchors; end edit moves only the end. `|end−start−duration|
+  ≥ 120 s` shows ⚠, never auto-corrects.
+- Record methods are three (schema v3, owner's request): `STOPWATCH`
+  (Start-Stop), `QUICKADD` (Add Time matrix), `MANUAL` (the log window's Add
+  entry… form). PRD-01 §7 lists two; the third is a deliberate extension.
+- Rounded exports carry the *billed* values in the two Duration columns; the
+  increment and scope are stated in the CSV footer / XLSX "Export info" sheet.
+  Per-group uplift is booked on the group's last line. CSV goldens live in
+  `tests/fixtures`; regenerate deliberately with `UPDATE_GOLDENS=1`.
+- The log's date range is always visible ("from … to …"); editing a date
+  switches the preset to Custom range. Adding an entry outside the range
+  widens it and selects the row.
 
 ## Launching on Windows
 

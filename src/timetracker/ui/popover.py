@@ -19,7 +19,6 @@ from enum import Enum
 from PySide6.QtCore import QEvent, QPoint, QRect, Qt, Signal
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtWidgets import (
-    QComboBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -32,16 +31,16 @@ from PySide6.QtWidgets import (
 )
 
 from timetracker.core.duration import format_hm, format_hms
-from timetracker.core.models import Dimension, Label
+from timetracker.core.models import Dimension
 from timetracker.services.entry_service import EntryService
 from timetracker.services.label_service import LabelService
 from timetracker.services.settings_service import KEY_POPOVER_MODE, SettingsService
 from timetracker.services.timer_service import TimerService, TimerState
+from timetracker.ui.label_combo import LabelCombo
 from timetracker.ui.quickadd.matrix import Matrix
 
 POPOVER_WIDTH = 380
 MATRIX_WIDTH = 640
-_NO_LABEL = "—"
 
 
 class PopoverMode(Enum):
@@ -49,59 +48,9 @@ class PopoverMode(Enum):
     MATRIX = "matrix"
 
 
-class LabelCombo(QComboBox):
-    """Editable combo over one label dimension. Typing a new name creates it on commit."""
-
-    def __init__(self, dimension: Dimension, labels: LabelService, parent: QWidget | None = None):
-        super().__init__(parent)
-        self._dim = dimension
-        self._labels = labels
-        self.setEditable(True)
-        self.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-        self.setAccessibleName(dimension.name.title())
-        self.reload()
-
-    def reload(self, selected_id: int | None = None) -> None:
-        current = selected_id if selected_id is not None else self.selected_id()
-        self.blockSignals(True)
-        self.clear()
-        self.addItem(_NO_LABEL, None)
-        for label in self._labels.list(self._dim):
-            self.addItem(label.name, label.id)
-        self.select(current)
-        self.blockSignals(False)
-
-    def select(self, label_id: int | None) -> None:
-        index = self.findData(label_id) if label_id is not None else 0
-        self.setCurrentIndex(index if index >= 0 else 0)
-
-    def selected_id(self) -> int | None:
-        """Id of the chosen label; ``None`` for the placeholder or unknown text."""
-        text = self.currentText().strip()
-        if not text or text == _NO_LABEL:
-            return None
-        index = self.findText(text, Qt.MatchFlag.MatchFixedString)
-        if index > 0:
-            data = self.itemData(index)
-            return int(data) if data is not None else None
-        return None
-
-    def commit(self) -> int | None:
-        """Resolve the text to a label id, creating the label if it is new (FR-401)."""
-        text = self.currentText().strip()
-        if not text or text == _NO_LABEL:
-            self.select(None)
-            return None
-        known = self.selected_id()
-        if known is not None:
-            return known
-        label: Label = self._labels.get_or_create(self._dim, text)
-        self.reload(label.id)
-        return label.id
-
-
 class Popover(QWidget):
     dismissed = Signal()
+    open_log_requested = Signal()
 
     def __init__(
         self,
@@ -166,10 +115,18 @@ class Popover(QWidget):
         form.addRow("Type", self.type)
         form.addRow("Note", self.note)
 
+        self.open_log = QToolButton()
+        self.open_log.setText("Open log")
+        self.open_log.setAccessibleName("Open log")
+        self.open_log.setAutoRaise(True)
+        self.open_log.clicked.connect(self._on_open_log)
+
         footer = QHBoxLayout()
         footer.addWidget(self.started_at)
         footer.addStretch(1)
         footer.addWidget(self.today)
+        footer.addStretch(1)
+        footer.addWidget(self.open_log)
 
         root = QVBoxLayout(self.stopwatch_page)
         root.setContentsMargins(16, 12, 16, 12)
@@ -328,6 +285,10 @@ class Popover(QWidget):
     def _on_note_edited(self) -> None:
         if self._timer.is_running:
             self._timer.set_note(self.note.text().strip() or None)
+
+    def _on_open_log(self) -> None:
+        self.hide()
+        self.open_log_requested.emit()
 
     # -- events --------------------------------------------------------------
 

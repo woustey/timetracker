@@ -19,12 +19,17 @@ _WS = re.compile(r"\s+")
 
 
 class RecordMethod(Enum):
-    STOPWATCH = "STOPWATCH"
-    QUICKADD = "QUICKADD"
+    STOPWATCH = "STOPWATCH"  # the timer (FR-204)
+    QUICKADD = "QUICKADD"  # the Add Time matrix (FR-314)
+    MANUAL = "MANUAL"  # the log window's Add entry… form (v3, owner's request)
 
     @property
     def display(self) -> str:
-        return "Start-Stop" if self is RecordMethod.STOPWATCH else "Add Time"
+        return {
+            RecordMethod.STOPWATCH: "Start-Stop",
+            RecordMethod.QUICKADD: "Add Time",
+            RecordMethod.MANUAL: "Manual",
+        }[self]
 
 
 class Dimension(Enum):

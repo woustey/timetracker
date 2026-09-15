@@ -9,6 +9,7 @@ Nothing is ever transmitted (NFR-06).
 from __future__ import annotations
 
 import logging
+import os
 import sys
 import traceback
 from logging.handlers import RotatingFileHandler
@@ -43,7 +44,36 @@ def install(data_dir: Path) -> Path:
         previous(exc_type, exc, tb)
 
     sys.excepthook = hook
+
+    # PySide prints exceptions raised inside slots to stderr and carries on.
+    # With no console (GUI launch) that text would vanish; send it to the log.
+    if sys.stderr is None or getattr(sys.stderr, "name", "") in ("nul", os.devnull):
+        sys.stderr = _LogWriter(logger)
     return path
+
+
+class _LogWriter:
+    """File-like sink turning stderr lines into ERROR log records."""
+
+    def __init__(self, logger: logging.Logger) -> None:
+        self._logger = logger
+        self._buffer = ""
+
+    def write(self, text: str) -> int:
+        self._buffer += text
+        while "\n" in self._buffer:
+            line, self._buffer = self._buffer.split("\n", 1)
+            if line.strip():
+                self._logger.error("stderr: %s", line.rstrip())
+        return len(text)
+
+    def flush(self) -> None:
+        if self._buffer.strip():
+            self._logger.error("stderr: %s", self._buffer.rstrip())
+        self._buffer = ""
+
+    def isatty(self) -> bool:
+        return False
 
 
 def log() -> logging.Logger:

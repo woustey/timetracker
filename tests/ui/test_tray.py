@@ -26,7 +26,9 @@ def test_icons_render_for_every_state(qapp, state: TrayState) -> None:  # type: 
 def test_menu_has_start_stop_and_quit(qapp, qtbot) -> None:  # type: ignore[no-untyped-def]
     tray = TrayIcon()
     actions = [a.text() for a in tray.menu.actions() if not a.isSeparator()]
-    assert actions == ["Start", "Add Time…", "Quit"]
+    assert actions == ["Start", "Add Time…", "Open log…", "Quit"]
+    with qtbot.waitSignal(tray.open_log_requested, timeout=1000):
+        tray.open_log_action.trigger()
     with qtbot.waitSignal(tray.add_time_requested, timeout=1000):
         tray.add_time_action.trigger()
     with qtbot.waitSignal(tray.quit_requested, timeout=1000):
