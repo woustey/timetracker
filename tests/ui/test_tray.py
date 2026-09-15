@@ -104,3 +104,32 @@ def test_tray_follows_timer_state(booted_app) -> None:  # type: ignore[no-untype
     assert tray.state is TrayState.IDLE
     assert tray.system_tray_icon.toolTip() == "Not tracking"
     assert tray.toggle_action.text() == "Start"
+
+
+def test_idle_prompt_sets_attention_and_tray_click_raises_it(booted_app, qtbot) -> None:  # type: ignore[no-untyped-def]
+
+    app = booted_app
+    svc, monitor, tray = app.timer_service, app.idle_monitor, app.tray
+    assert monitor is not None
+    svc.start()
+    monitor.on_suspend_resumed(1800, 1800)  # what PowerMonitor reports after a 30-min sleep
+    qtbot.waitUntil(lambda: app._idle_dialog is not None, timeout=1000)  # noqa: SLF001
+    assert tray.state is TrayState.ATTENTION
+    assert tray.system_tray_icon.toolTip() == "Away for 0:30 — click to resolve"
+    dialog = app._idle_dialog  # noqa: SLF001
+    assert "asleep for 0:30:00" in dialog.summary.text()
+
+    # Closing without answering keeps it outstanding; a tray click brings it back.
+    dialog.reject()
+    assert app._idle_dialog is None  # noqa: SLF001
+    assert monitor.outstanding is not None
+    assert tray.state is TrayState.ATTENTION
+    app.show_popover()
+    assert app._idle_dialog is not None  # noqa: SLF001
+    assert app.popover is not None and not app.popover.isVisible()
+
+    app._idle_dialog.discard.click()  # noqa: SLF001
+    assert monitor.outstanding is None
+    assert tray.state is TrayState.RUNNING
+    assert svc.elapsed_seconds() == 0
+    svc.stop()

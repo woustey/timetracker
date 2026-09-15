@@ -12,6 +12,7 @@ license = { text = "MIT" }
 dependencies = [
     "PySide6>=6.7",
     "tzdata; sys_platform == 'win32'",
+    "pyobjc-framework-Quartz; sys_platform == 'darwin'",
 ]
 
 [project.optional-dependencies]

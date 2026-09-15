@@ -12,6 +12,7 @@ column stays NULL.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from datetime import datetime, timedelta
 from enum import Enum
 
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -49,6 +50,7 @@ class TimerService(QObject):
     stopped = Signal(object)  # Entry
     labels_changed = Signal()
     state_changed = Signal(object)  # TimerState
+    long_running = Signal(int)  # elapsed seconds; once per timer at the threshold (PRD-01 §10)
 
     def __init__(
         self,
@@ -73,6 +75,8 @@ class TimerService(QObject):
         self._mono_start = 0.0
         self._base_accrued = 0
         self._last_emitted = -1
+        self._long_running_threshold = 12 * 3600
+        self._long_running_prompted = False
 
         self._tick = QTimer(self)
         self._tick.setInterval(tick_ms)
@@ -103,7 +107,15 @@ class TimerService(QObject):
     def elapsed_seconds(self) -> int:
         if self._running is None:
             return 0
-        return self._base_accrued + int(self._clock.monotonic() - self._mono_start)
+        return max(0, self._base_accrued + int(self._clock.monotonic() - self._mono_start))
+
+    @property
+    def long_running_threshold(self) -> int:
+        return self._long_running_threshold
+
+    def set_long_running_threshold(self, seconds: int) -> None:
+        """0 disables the "still running?" prompt."""
+        self._long_running_threshold = max(0, int(seconds))
 
     def default_labels(self) -> tuple[int | None, int | None]:
         """Most recently used (client, type) pair (FR-202), from the newest entry."""
@@ -176,6 +188,7 @@ class TimerService(QObject):
         self._mono_start = self._clock.monotonic()
         self._base_accrued = 0
         self._last_emitted = 0
+        self._long_running_prompted = False
         self._tick.start()
         self._heartbeat.start()
         self.started.emit(timer)
@@ -183,19 +196,26 @@ class TimerService(QObject):
         self.ticked.emit(0)
         return timer
 
-    def stop(self) -> Entry:
-        """Create the ``STOPWATCH`` entry (FR-204) and return to idle."""
+    def stop(
+        self, *, ended_at_utc: datetime | None = None, elapsed_override: int | None = None
+    ) -> Entry:
+        """Create the ``STOPWATCH`` entry (FR-204) and return to idle.
+
+        ``ended_at_utc`` moves the chronology anchor (e.g. to an idle start);
+        ``elapsed_override`` replaces the measured duration. Both exist for the
+        idle outcomes; ordinary stops pass neither.
+        """
         timer = self._running
         if timer is None:
             raise RuntimeError("no timer is running")
-        elapsed = self.elapsed_seconds()
-        now = self._clock.now_utc()
+        elapsed = self.elapsed_seconds() if elapsed_override is None else max(0, elapsed_override)
+        end = ended_at_utc if ended_at_utc is not None else self._clock.now_utc()
         self._tick.stop()
         self._heartbeat.stop()
         entry = self._entries.insert(
             NewEntry(
                 started_at_utc=timer.started_at_utc,
-                ended_at_utc=max(now, timer.started_at_utc),
+                ended_at_utc=max(end, timer.started_at_utc),
                 tz_name=timer.tz_name,
                 duration_seconds=elapsed,
                 record_method=RecordMethod.STOPWATCH,
@@ -210,6 +230,50 @@ class TimerService(QObject):
         self.stopped.emit(entry)
         self.state_changed.emit(TimerState.IDLE)
         return entry
+
+    def adjust_accrued(self, delta_seconds: int) -> int:
+        """Add (or remove) seconds on the running timer; floors at zero. Returns new elapsed.
+
+        Used by the idle outcomes (FR-209/FR-211). Persists immediately so an
+        answered prompt survives a crash.
+        """
+        if self._running is None or delta_seconds == 0:
+            return self.elapsed_seconds()
+        current = self.elapsed_seconds()
+        target = max(0, current + int(delta_seconds))
+        self._base_accrued += target - current
+        self.on_heartbeat()
+        self._last_emitted = -1
+        self.on_tick()
+        return target
+
+    def split_idle(
+        self, idle_start_utc: datetime, idle_seconds: int, counted_seconds: int
+    ) -> tuple[Entry, Entry]:
+        """ "Log separately": stop at the idle start and write the idle span as its own entry.
+
+        The first entry keeps the work before the idle period; the second has
+        the same labels, the note ``Idle``, and the wall-clock length of the
+        away span. Both are ``STOPWATCH`` entries created here (§6 rule).
+        """
+        timer = self._running
+        if timer is None:
+            raise RuntimeError("no timer is running")
+        before = max(0, self.elapsed_seconds() - counted_seconds)
+        work = self.stop(ended_at_utc=idle_start_utc, elapsed_override=before)
+        idle = self._entries.insert(
+            NewEntry(
+                started_at_utc=idle_start_utc,
+                ended_at_utc=idle_start_utc + timedelta(seconds=idle_seconds),
+                tz_name=timer.tz_name,
+                duration_seconds=idle_seconds,
+                record_method=RecordMethod.STOPWATCH,
+                client_id=timer.client_id,
+                type_id=timer.type_id,
+                note="Idle",
+            )
+        )
+        return work, idle
 
     def discard(self) -> None:
         """Drop the running timer without writing an entry (FR-111 "discard")."""
@@ -247,6 +311,13 @@ class TimerService(QObject):
         if elapsed != self._last_emitted:
             self._last_emitted = elapsed
             self.ticked.emit(elapsed)
+        if (
+            self._long_running_threshold
+            and not self._long_running_prompted
+            and elapsed >= self._long_running_threshold
+        ):
+            self._long_running_prompted = True
+            self.long_running.emit(elapsed)
 
     def on_heartbeat(self) -> None:
         """Persist the durable copy every 30 s (FR-207, NFR-07)."""

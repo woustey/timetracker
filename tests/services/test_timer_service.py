@@ -264,3 +264,67 @@ def test_recovery_discarded(
     svc.discard_recovery()  # idempotent
     with pytest.raises(RuntimeError):
         svc.recover()
+
+
+# -- M4 additions ----------------------------------------------------------------
+
+
+def test_adjust_accrued_floors_at_zero_and_persists(
+    service: TimerService, timers: TimerRepo, clock: FakeClock, qtbot
+) -> None:  # type: ignore[no-untyped-def]
+    service.start()
+    clock.advance(100)
+    with qtbot.waitSignal(service.ticked, timeout=1000) as blocker:
+        assert service.adjust_accrued(-40) == 60
+    assert blocker.args == [60]
+    assert service.adjust_accrued(-500) == 0
+    assert service.elapsed_seconds() == 0
+    assert service.adjust_accrued(+30) == 30
+    row = timers.get()
+    assert row is not None and row.heartbeat_accrued_sec == 30
+    clock.advance(10)
+    assert service.elapsed_seconds() == 40
+    assert service.adjust_accrued(0) == 40
+
+
+def test_stop_with_anchor_and_override(service: TimerService, clock: FakeClock) -> None:
+    start = clock.now_utc()
+    service.start()
+    clock.advance(600)
+    entry = service.stop(ended_at_utc=start + timedelta(seconds=200), elapsed_override=150)
+    assert entry.duration_seconds == 150
+    assert entry.ended_at_utc == start + timedelta(seconds=200)
+    # An anchor before the start is clamped; a negative override floors at zero.
+    service.start()
+    clock.advance(5)
+    entry = service.stop(ended_at_utc=start - timedelta(days=1), elapsed_override=-9)
+    assert entry.ended_at_utc == entry.started_at_utc
+    assert entry.duration_seconds == 0
+
+
+def test_long_running_prompt_emitted_once_per_timer(
+    service: TimerService, clock: FakeClock, qtbot
+) -> None:  # type: ignore[no-untyped-def]
+    service.set_long_running_threshold(3600)
+    service.start()
+    seen: list[int] = []
+    service.long_running.connect(seen.append)
+    clock.advance(3599)
+    service.on_tick()
+    assert seen == []
+    clock.advance(1)
+    service.on_tick()
+    clock.advance(1000)
+    service.on_tick()
+    assert seen == [3600]
+    service.stop()
+    service.start()  # a new timer may prompt again
+    clock.advance(3600)
+    service.on_tick()
+    assert seen == [3600, 3600]
+    service.set_long_running_threshold(0)  # disabled
+    service.stop()
+    service.start()
+    clock.advance(10 * 3600)
+    service.on_tick()
+    assert len(seen) == 2

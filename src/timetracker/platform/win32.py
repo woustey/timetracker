@@ -39,3 +39,37 @@ def detach_orphan_console() -> bool:
     sys.stdout = devnull
     sys.stderr = devnull
     return True
+
+
+class Win32IdleProvider:
+    """``GetLastInputInfo`` against ``GetTickCount64`` (PRD-02 §7.1). No permissions needed.
+
+    While the workstation is locked the input goes to the secure desktop and the
+    last-input tick stops advancing, so a lock counts as idle (FR-211).
+    """
+
+    name = "Windows (GetLastInputInfo)"
+
+    def __init__(self) -> None:
+        if sys.platform != "win32":
+            raise OSError("Win32IdleProvider is Windows-only")
+        self._user32 = ctypes.windll.user32  # type: ignore[attr-defined]
+        self._kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        self._kernel32.GetTickCount64.restype = ctypes.c_ulonglong
+
+        class LASTINPUTINFO(ctypes.Structure):
+            _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
+
+        self._struct = LASTINPUTINFO
+        self.seconds_idle()  # probe: raises if the call fails
+
+    def seconds_idle(self) -> float:
+        info = self._struct()
+        info.cbSize = ctypes.sizeof(info)
+        if not self._user32.GetLastInputInfo(ctypes.byref(info)):
+            raise OSError("GetLastInputInfo failed")
+        now_ms = int(self._kernel32.GetTickCount64())
+        # dwTime is a 32-bit tick; compare in the same 32-bit ring.
+        last_ms = int(info.dwTime)
+        idle_ms = (now_ms - last_ms) & 0xFFFFFFFF
+        return max(0.0, idle_ms / 1000.0)

@@ -13,6 +13,7 @@ from timetracker.core.clock import Clock, SystemClock
 from timetracker.core.duration import format_hm
 from timetracker.core.errors import SchemaTooNewError
 from timetracker.core.models import Dimension
+from timetracker.crashlog import log
 from timetracker.data import paths
 from timetracker.data.db import connect
 from timetracker.data.entry_repo import EntryRepo
@@ -21,10 +22,19 @@ from timetracker.data.migrate import migrate
 from timetracker.data.settings_repo import SettingsRepo
 from timetracker.data.timer_repo import TimerRepo
 from timetracker.instance_lock import InstanceLock
+from timetracker.platform.factory import idle_provider
 from timetracker.services.entry_service import EntryService
+from timetracker.services.idle_monitor import IdleMonitor, IdleOutcome, IdleSpan
 from timetracker.services.label_service import LabelService
-from timetracker.services.settings_service import SettingsService
+from timetracker.services.power_monitor import PowerMonitor
+from timetracker.services.settings_service import (
+    KEY_IDLE_THRESHOLD_MIN,
+    KEY_LONG_RUNNING_HOURS,
+    SettingsService,
+)
 from timetracker.services.timer_service import TimerService, TimerState
+from timetracker.ui.dialogs.idle_prompt import IdlePromptDialog
+from timetracker.ui.dialogs.long_running import LongRunningDialog
 from timetracker.ui.dialogs.recovery import RecoveryChoice, RecoveryDialog
 from timetracker.ui.icons import TrayState
 from timetracker.ui.popover import Popover, PopoverMode
@@ -59,11 +69,15 @@ class App(QApplication):
         self.label_service: LabelService | None = None
         self.entry_service: EntryService | None = None
         self.settings_service: SettingsService | None = None
+        self.idle_monitor: IdleMonitor | None = None
+        self.power_monitor: PowerMonitor | None = None
         self.clock: Clock | None = None
         self._conn: sqlite3.Connection | None = None
         self._lock: InstanceLock | None = None
         self._watcher: QFileSystemWatcher | None = None
         self._recovery_dialog: RecoveryDialog | None = None
+        self._idle_dialog: IdlePromptDialog | None = None
+        self._long_running_dialog: LongRunningDialog | None = None
         self.aboutToQuit.connect(self.shutdown)
 
     # -- lifecycle -----------------------------------------------------------
@@ -121,6 +135,26 @@ class App(QApplication):
         self.timer_service.state_changed.connect(self._on_state_changed)
         self.timer_service.ticked.connect(self._on_tick)
         self.timer_service.labels_changed.connect(lambda: self._on_tick(self._elapsed()))
+        self.timer_service.long_running.connect(self.offer_long_running)
+        self.timer_service.set_long_running_threshold(self.settings_service.long_running_seconds)
+
+        # -- trust: idle + sleep/wake (FR-209–FR-211) ------------------------
+        provider = idle_provider()
+        self.idle_monitor = IdleMonitor(
+            self.clock,
+            provider,
+            self.timer_service,
+            threshold_seconds=self.settings_service.idle_threshold_seconds,
+            parent=self,
+        )
+        self.idle_monitor.prompt_needed.connect(self.offer_idle_prompt)
+        self.idle_monitor.span_updated.connect(self._on_idle_span_updated)
+        self.idle_monitor.resolved.connect(self._on_idle_resolved)
+        self.power_monitor = PowerMonitor(self.clock, self)
+        self.power_monitor.resumed_from_suspend.connect(self.idle_monitor.on_suspend_resumed)
+        self.power_monitor.start()
+        self.settings_service.setting_changed.connect(self._on_setting_changed)
+        log().info("Idle provider: %s", getattr(provider, "name", provider))
 
         self._watcher = QFileSystemWatcher([str(directory)], self)
         self._watcher.directoryChanged.connect(self._on_data_dir_changed)
@@ -142,6 +176,15 @@ class App(QApplication):
         if self._watcher is not None:
             self._watcher.deleteLater()
             self._watcher = None
+        if self.power_monitor is not None:
+            self.power_monitor.stop()
+            self.power_monitor = None
+        self.idle_monitor = None
+        for dialog in (self._idle_dialog, self._long_running_dialog):
+            if dialog is not None:
+                dialog.close()
+        self._idle_dialog = None
+        self._long_running_dialog = None
         if self._conn is not None:
             self._conn.close()
             self._conn = None
@@ -162,6 +205,9 @@ class App(QApplication):
             return
         if self.timer_service is not None and self.timer_service.pending_recovery is not None:
             self.offer_recovery()
+            return
+        if self.idle_monitor is not None and self.idle_monitor.outstanding is not None:
+            self.offer_idle_prompt(self.idle_monitor.outstanding)  # FR-210: reachable from the tray
             return
         if self.popover.isVisible():
             self.popover.hide()
@@ -206,6 +252,88 @@ class App(QApplication):
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
+
+    # -- idle prompt (FR-209/FR-210) -----------------------------------------
+
+    def offer_idle_prompt(self, span: IdleSpan) -> None:
+        if self.clock is None or self.idle_monitor is None:
+            return
+        if self._idle_dialog is not None:
+            self._idle_dialog.update_span(span)
+            self._idle_dialog.show()
+            self._idle_dialog.raise_()
+            self._idle_dialog.activateWindow()
+            return
+        dialog = IdlePromptDialog(span, self.clock.tz_name())
+        dialog.answered.connect(self._on_idle_answered)
+        dialog.finished.connect(lambda _code: self._on_idle_dialog_closed(dialog))
+        self._idle_dialog = dialog
+        self._refresh_attention()
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _on_idle_span_updated(self, span: IdleSpan) -> None:
+        if self._idle_dialog is not None:
+            self._idle_dialog.update_span(span)
+        self._refresh_attention()
+
+    def _on_idle_answered(self, outcome: IdleOutcome) -> None:
+        if self.idle_monitor is not None:
+            self.idle_monitor.resolve(outcome)
+
+    def _on_idle_dialog_closed(self, dialog: IdlePromptDialog) -> None:
+        if self._idle_dialog is dialog:
+            self._idle_dialog = None
+        # Closed without answering: the span stays outstanding (FR-210); the tray
+        # keeps the attention state until it is answered or superseded.
+        self._refresh_attention()
+
+    def _on_idle_resolved(self) -> None:
+        if self._idle_dialog is not None:
+            dialog, self._idle_dialog = self._idle_dialog, None
+            dialog.close()
+        self._refresh_attention()
+
+    def _refresh_attention(self) -> None:
+        if self.tray is None or self.timer_service is None:
+            return
+        if self.timer_service.pending_recovery is not None:
+            return
+        span = self.idle_monitor.outstanding if self.idle_monitor is not None else None
+        if span is not None and self.timer_service.is_running:
+            self.tray.set_state(
+                TrayState.ATTENTION, f"Away for {format_hm(span.seconds)} — click to resolve"
+            )
+        else:
+            self._on_state_changed(self.timer_service.state)
+
+    # -- long-running prompt (PRD-01 §10) --------------------------------------
+
+    def offer_long_running(self, elapsed: int) -> None:
+        svc = self.timer_service
+        if svc is None or not svc.is_running:
+            return
+        if self._long_running_dialog is not None:
+            self._long_running_dialog.raise_()
+            return
+        dialog = LongRunningDialog(elapsed, svc.started_local_time())
+        dialog.stop_requested.connect(lambda: svc.stop() if svc.is_running else None)
+        dialog.finished.connect(lambda _code: setattr(self, "_long_running_dialog", None))
+        self._long_running_dialog = dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _on_setting_changed(self, key: str) -> None:
+        if self.settings_service is None:
+            return
+        if key == KEY_IDLE_THRESHOLD_MIN and self.idle_monitor is not None:
+            self.idle_monitor.set_threshold_seconds(self.settings_service.idle_threshold_seconds)
+        elif key == KEY_LONG_RUNNING_HOURS and self.timer_service is not None:
+            self.timer_service.set_long_running_threshold(
+                self.settings_service.long_running_seconds
+            )
 
     def _resolve_recovery(self, dialog: RecoveryDialog) -> None:
         self._recovery_dialog = None
@@ -269,6 +397,7 @@ class App(QApplication):
             self.tray is not None
             and self.timer_service is not None
             and self.timer_service.is_running
+            and self.tray.state is not TrayState.ATTENTION
         ):
             self.tray.set_tooltip(self._tooltip())
 

@@ -81,6 +81,18 @@ Tray-resident time tracker. Product requirements: `docs/PRD-time-tracker.md`
   total; the "‹ Timer" button switches pages.
 - Anchoring arithmetic is done in UTC: adding a timedelta to a zone-aware
   local datetime is wall-clock arithmetic and drops an hour across DST.
+- Sleep vs. monotonic clock differs per OS (Windows counts through sleep,
+  Linux `CLOCK_MONOTONIC` does not). `PowerMonitor` reports both the wall and
+  the monotonic away delta; `IdleSpan.counted_seconds` is what the timer
+  already accrued. Idle outcomes are defined on the wall span: keep ⇒ accrued
+  includes it, discard ⇒ accrued excludes it. Never "accrued −= idle" blindly.
+- "Log separately" stops the timer at the idle start and writes the away span
+  as its own STOPWATCH entry (same labels, note `Idle`), per PRD-02 §6.
+- Wayland idle uses `PySide6.QtDBus` (ships with PySide6; not a network
+  module). Linux providers raise without a desktop; the factory returns
+  `Unavailable(reason)`.
+- An unanswered idle prompt stays outstanding (FR-210): tray shows the
+  attention badge and a tray click re-raises the dialog instead of the popover.
 
 ## Launching on Windows
 
