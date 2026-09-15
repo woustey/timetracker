@@ -100,7 +100,10 @@ class Win32Autostart:
         import subprocess
         import winreg
 
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, self._KEY, 0, winreg.KEY_SET_VALUE) as key:
+        # CreateKeyEx: a fresh profile may not have the Run key at all.
+        with winreg.CreateKeyEx(
+            winreg.HKEY_CURRENT_USER, self._KEY, 0, winreg.KEY_SET_VALUE
+        ) as key:
             if enabled:
                 winreg.SetValueEx(
                     key, self._value, 0, winreg.REG_SZ, subprocess.list2cmdline(command)
