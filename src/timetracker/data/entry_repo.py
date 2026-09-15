@@ -220,10 +220,14 @@ class EntryRepo:
 
     def summary(self, flt: EntryFilter | None = None) -> Summary:
         """Count, grand total and both subtotal lists from one ``GROUP BY client_id, type_id``."""
-        where, params = _where(flt or EntryFilter())
+        flt = flt or EntryFilter()
+        where, params = _where(flt)
+        # With a note search the planner would walk the covering index and look up
+        # every row to test `note` (~15x slower than a plain scan); force the scan.
+        hint = " NOT INDEXED" if flt.note_contains else ""
         rows = self._conn.execute(
             "SELECT client_id, type_id, COALESCE(SUM(duration_seconds), 0) AS seconds, "
-            f"COUNT(*) AS n FROM entry {where} GROUP BY client_id, type_id",
+            f"COUNT(*) AS n FROM entry{hint} {where} GROUP BY client_id, type_id",
             params,
         ).fetchall()
         client_names = self._names("client")

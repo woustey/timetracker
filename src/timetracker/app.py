@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
 
-from PySide6.QtCore import QFileSystemWatcher, QTimer, QTimeZone
+from PySide6.QtCore import QFileSystemWatcher, QProcess, QTimer, QTimeZone
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 
 from timetracker import __version__
@@ -21,25 +22,34 @@ from timetracker.data.label_repo import LabelRepo
 from timetracker.data.migrate import migrate
 from timetracker.data.settings_repo import SettingsRepo
 from timetracker.data.timer_repo import TimerRepo
+from timetracker.diagnostics import ASSUME_TRAY_ENV
 from timetracker.instance_lock import InstanceLock
-from timetracker.platform.factory import idle_provider
+from timetracker.platform.factory import autostart_provider, idle_provider, launch_command
+from timetracker.services.backup_service import BackupService
 from timetracker.services.entry_service import EntryService
 from timetracker.services.export_service import ExportService
 from timetracker.services.idle_monitor import IdleMonitor, IdleOutcome, IdleSpan
 from timetracker.services.label_service import LabelService
 from timetracker.services.power_monitor import PowerMonitor
 from timetracker.services.settings_service import (
+    KEY_AUTOSTART_OFFERED,
     KEY_IDLE_THRESHOLD_MIN,
     KEY_LONG_RUNNING_HOURS,
+    KEY_THEME,
+    KEY_TIME_FORMAT,
     SettingsService,
 )
 from timetracker.services.timer_service import TimerService, TimerState
+from timetracker.ui import formatting
+from timetracker.ui.dialogs.first_run import AutostartOfferDialog
 from timetracker.ui.dialogs.idle_prompt import IdlePromptDialog
 from timetracker.ui.dialogs.long_running import LongRunningDialog
 from timetracker.ui.dialogs.recovery import RecoveryChoice, RecoveryDialog
 from timetracker.ui.icons import TrayState
 from timetracker.ui.log.window import LogWindow
 from timetracker.ui.popover import Popover, PopoverMode
+from timetracker.ui.settings_dialog import SettingsDialog
+from timetracker.ui.theme import ThemeManager
 from timetracker.ui.tray import TrayIcon
 
 _NO_TRAY_TEXT = (
@@ -74,7 +84,12 @@ class App(QApplication):
         self.idle_monitor: IdleMonitor | None = None
         self.power_monitor: PowerMonitor | None = None
         self.export_service: ExportService | None = None
+        self.backup_service: BackupService | None = None
         self.log_window: LogWindow | None = None
+        self.settings_dialog: SettingsDialog | None = None
+        self.theme = ThemeManager(self, self)
+        self._first_run_dialog: AutostartOfferDialog | None = None
+        self._relaunching = False
         self._entry_repo: EntryRepo | None = None
         self.clock: Clock | None = None
         self._conn: sqlite3.Connection | None = None
@@ -89,7 +104,7 @@ class App(QApplication):
 
     def bootstrap(self, data_dir: Path | None = None) -> bool:
         """Create everything. Returns ``False`` if the app cannot run here."""
-        if not QSystemTrayIcon.isSystemTrayAvailable():
+        if not QSystemTrayIcon.isSystemTrayAvailable() and not os.environ.get(ASSUME_TRAY_ENV):
             QMessageBox.critical(None, "No system tray available", _NO_TRAY_TEXT)
             return False
 
@@ -128,7 +143,10 @@ class App(QApplication):
             self.clock, entries, clients, types, self.settings_service, self
         )
         self.export_service = ExportService(self.clock, db_file, self)
+        self.backup_service = BackupService(self.clock, db_file, conn, self)
         self._entry_repo = entries
+        self.theme.apply(self.settings_service.theme)
+        formatting.set_twelve_hour(self.settings_service.time_format_12h)
 
         self.tray = TrayIcon(self)
         self.popover = Popover(
@@ -139,6 +157,8 @@ class App(QApplication):
         self.tray.add_time_requested.connect(self.show_add_time)
         self.tray.open_log_requested.connect(self.show_log)
         self.popover.open_log_requested.connect(self.show_log)
+        self.tray.settings_requested.connect(self.show_settings)
+        self.popover.settings_requested.connect(self.show_settings)
         self.tray.toggle_requested.connect(self.toggle_timer)
         self.tray.quit_requested.connect(self.request_quit)
         self.timer_service.state_changed.connect(self._on_state_changed)
@@ -174,6 +194,8 @@ class App(QApplication):
         if self.timer_service.pending_recovery is not None:
             self.tray.set_state(TrayState.ATTENTION, "Unsaved session recovered — click to resolve")
             QTimer.singleShot(0, self.offer_recovery)
+        elif not self.settings_service.autostart_offered:
+            QTimer.singleShot(400, self.offer_autostart)  # FR-108: once, after the tray is up
         return True
 
     def shutdown(self) -> None:
@@ -197,7 +219,14 @@ class App(QApplication):
         if self.log_window is not None:
             self.log_window.close()
             self.log_window = None
+        if self.settings_dialog is not None:
+            self.settings_dialog.close()
+            self.settings_dialog = None
+        if self._first_run_dialog is not None:
+            self._first_run_dialog.close()
+            self._first_run_dialog = None
         self.export_service = None
+        self.backup_service = None
         self._entry_repo = None
         if self._conn is not None:
             self._conn.close()
@@ -252,6 +281,64 @@ class App(QApplication):
         self.log_window.show()
         self.log_window.raise_()
         self.log_window.activateWindow()
+
+    def show_settings(self) -> None:
+        """FR-103 *Settings…*: one dialog, re-raised if already open."""
+        if self.settings_dialog is None:
+            if (
+                self.settings_service is None
+                or self.label_service is None
+                or self.backup_service is None
+            ):
+                return
+            dialog = SettingsDialog(
+                self.settings_service,
+                self.label_service,
+                self.backup_service,
+                self.idle_monitor,
+                autostart_provider(),
+            )
+            dialog.theme_changed.connect(self.theme.apply)
+            dialog.relaunch_requested.connect(self.relaunch)
+            dialog.finished.connect(lambda _code: setattr(self, "settings_dialog", None))
+            self.settings_dialog = dialog
+        self.settings_dialog.show()
+        self.settings_dialog.raise_()
+        self.settings_dialog.activateWindow()
+
+    def offer_autostart(self) -> None:
+        """FR-108: offered once on first run; the answer (either way) is remembered."""
+        if self.settings_service is None or self._first_run_dialog is not None:
+            return
+        provider = autostart_provider()
+        self.settings_service.set(KEY_AUTOSTART_OFFERED, True)
+        if not hasattr(provider, "set_enabled"):
+            return  # nothing to offer on this platform
+        dialog = AutostartOfferDialog()
+
+        def answered(yes: bool) -> None:
+            if yes:
+                try:
+                    provider.set_enabled(True, launch_command())  # type: ignore[union-attr]
+                except OSError as exc:
+                    log().warning("Could not enable start at login: %s", exc)
+
+        dialog.answered.connect(answered)
+        dialog.finished.connect(lambda _code: setattr(self, "_first_run_dialog", None))
+        self._first_run_dialog = dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def relaunch(self) -> None:
+        """After a restore: release everything, start a fresh process, quit this one."""
+        if self._relaunching:
+            return
+        self._relaunching = True
+        self.shutdown()
+        command = launch_command()
+        QProcess.startDetached(command[0], command[1:])
+        self.quit()
 
     def _on_log_closed(self) -> None:
         if self.log_window is not None:
@@ -378,6 +465,12 @@ class App(QApplication):
             self.timer_service.set_long_running_threshold(
                 self.settings_service.long_running_seconds
             )
+        elif key == KEY_THEME:
+            self.theme.apply(self.settings_service.theme)
+        elif key == KEY_TIME_FORMAT:
+            formatting.set_twelve_hour(self.settings_service.time_format_12h)
+            if self.popover is not None:
+                self.popover.refresh()
 
     def _resolve_recovery(self, dialog: RecoveryDialog) -> None:
         self._recovery_dialog = None

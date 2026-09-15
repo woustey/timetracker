@@ -37,6 +37,30 @@ class LabelService(QObject):
             self.labels_changed.emit(dimension)
         return label
 
+    def list_all(self, dimension: Dimension) -> list[Label]:
+        """Including archived — for the management UI."""
+        return self._repos[dimension].list_all(include_archived=True)
+
+    def entry_count(self, dimension: Dimension, label_id: int) -> int:
+        return self._repos[dimension].entry_count(label_id)
+
+    def rename(self, dimension: Dimension, label_id: int, new_name: str) -> Label:
+        """FR-404: entries reference the id, so every entry follows the rename."""
+        label = self._repos[dimension].rename(label_id, new_name)
+        self.labels_changed.emit(dimension)
+        return label
+
+    def set_archived(self, dimension: Dimension, label_id: int, archived: bool) -> Label:
+        """FR-405: hidden from chips and combos, kept on historical entries."""
+        label = self._repos[dimension].set_archived(label_id, archived)
+        self.labels_changed.emit(dimension)
+        return label
+
+    def delete(self, dimension: Dimension, label_id: int) -> None:
+        """FR-405: refused (``LabelInUseError``) when any entry references the label."""
+        self._repos[dimension].delete(label_id)
+        self.labels_changed.emit(dimension)
+
     def ensure_seed_types(self) -> None:
         if self._repos[Dimension.TYPE].ensure_seed():
             self.labels_changed.emit(Dimension.TYPE)

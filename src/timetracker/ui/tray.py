@@ -26,6 +26,7 @@ class TrayIcon(QObject):
     toggle_requested = Signal()
     add_time_requested = Signal()
     open_log_requested = Signal()
+    settings_requested = Signal()
     quit_requested = Signal()
 
     def __init__(self, parent: QObject | None = None) -> None:
@@ -44,6 +45,9 @@ class TrayIcon(QObject):
         self._open_log_action = QAction("Open log…", self._menu)
         self._open_log_action.triggered.connect(self.open_log_requested.emit)
         self._menu.addAction(self._open_log_action)
+        self._settings_action = QAction("Settings…", self._menu)
+        self._settings_action.triggered.connect(self.settings_requested.emit)
+        self._menu.addAction(self._settings_action)
         self._menu.addSeparator()
         self._quit_action = QAction("Quit", self._menu)
         self._quit_action.triggered.connect(self.quit_requested.emit)
@@ -112,6 +116,10 @@ class TrayIcon(QObject):
     @property
     def open_log_action(self) -> QAction:
         return self._open_log_action
+
+    @property
+    def settings_action(self) -> QAction:
+        return self._settings_action
 
     @property
     def quit_action(self) -> QAction:

@@ -25,6 +25,10 @@ KEY_ROUNDING_MINUTES = "export.rounding_minutes"  # 0 | 6 | 10 | 15 | 30 (FR-604
 KEY_ROUNDING_SCOPE = "export.rounding_scope"  # "per_entry" | "per_group" (FR-606)
 KEY_CSV_DELIMITER = "export.csv_delimiter"  # None = locale default (FR-601)
 KEY_EXPORT_FOLDER = "export.folder"  # None = home directory
+KEY_THEME = "ui.theme"  # "system" | "light" | "dark" (FR-701)
+KEY_FIRST_WEEKDAY = "ui.first_weekday"  # 0 = Monday … 6 = Sunday (FR-701)
+KEY_TIME_FORMAT = "ui.time_format"  # "24h" | "12h" (FR-701)
+KEY_AUTOSTART_OFFERED = "app.autostart_offered"  # FR-108: offered once on first run
 
 DEFAULTS: dict[str, Any] = {
     KEY_MANDATORY_CLIENT: True,  # PRD-01 Q1: mandatory by default, with a setting
@@ -37,6 +41,10 @@ DEFAULTS: dict[str, Any] = {
     KEY_ROUNDING_SCOPE: "per_group",  # PRD-01 Q4: the more conservative default
     KEY_CSV_DELIMITER: None,
     KEY_EXPORT_FOLDER: None,
+    KEY_THEME: "system",
+    KEY_FIRST_WEEKDAY: 0,
+    KEY_TIME_FORMAT: "24h",
+    KEY_AUTOSTART_OFFERED: False,
 }
 
 
@@ -111,6 +119,27 @@ class SettingsService(QObject):
         if isinstance(raw, str) and raw:
             return Path(raw).expanduser()
         return Path.home()
+
+    @property
+    def theme(self) -> str:
+        value = str(self.get(KEY_THEME))
+        return value if value in ("system", "light", "dark") else "system"
+
+    @property
+    def first_weekday(self) -> int:
+        try:
+            value = int(self.get(KEY_FIRST_WEEKDAY))
+        except (TypeError, ValueError):
+            return 0
+        return value if 0 <= value <= 6 else 0
+
+    @property
+    def time_format_12h(self) -> bool:
+        return str(self.get(KEY_TIME_FORMAT)) == "12h"
+
+    @property
+    def autostart_offered(self) -> bool:
+        return bool(self.get(KEY_AUTOSTART_OFFERED))
 
     @property
     def workday_start(self) -> time:

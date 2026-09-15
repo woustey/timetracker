@@ -112,6 +112,24 @@ Tray-resident time tracker. Product requirements: `docs/PRD-time-tracker.md`
 - The log's date range is always visible ("from … to …"); editing a date
   switches the preset to Custom range. Adding an entry outside the range
   widens it and selects the row.
+- M6 skipped the *should* items §13 lists: global hotkeys (FR-109), merge /
+  pin / colour (FR-406–408), stop-confirmation and minimum-duration settings.
+- Autostart (FR-108): Windows Run key, macOS LaunchAgent plist (SMAppService
+  would need a fifth dependency), XDG `.desktop`. `launch_command()` picks the
+  frozen exe, the GUI script, or `pythonw -m timetracker`. Offered once on
+  first run (non-modal); the answer is remembered either way.
+- Restore (FR-802) validates the file (`integrity_check`, schema not newer),
+  snapshots the live DB first, copies over, then relaunches the process:
+  SQLite cannot swap the file under an open connection.
+- Theme: Fusion + light/dark palette + one QSS string; "system" follows
+  `QStyleHints.colorScheme()` live. Time format is a UI-layer switch
+  (`ui/formatting.py`) read at boot and on change.
+- NFR-01/03 harness: `TIMETRACKER_MEASURE_BOOT=<idle s>` boots, idles, prints
+  one JSON line and exits; `TIMETRACKER_ASSUME_TRAY=1` skips the tray check so
+  it runs headless. `diagnostics.py` is stdlib only. Measured on this laptop:
+  boot 0.68 s (real tray), RSS 75 MB, idle CPU 0 ticks / 20 s.
+- `EntryRepo.summary` uses `NOT INDEXED` when a note search is present: the
+  planner would otherwise walk the covering index and look up every row.
 
 ## Launching on Windows
 

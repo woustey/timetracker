@@ -117,3 +117,33 @@ class WaylandIdleProvider:
         if not args:
             raise OSError("D-Bus idle query returned nothing")
         return max(0.0, float(args[0]) / self._divisor)
+
+
+class DesktopAutostart:
+    """``~/.config/autostart/timetracker.desktop`` (FR-108; XDG autostart)."""
+
+    name = "XDG autostart entry"
+
+    def __init__(self, app_id: str = "timetracker") -> None:
+        if not sys.platform.startswith("linux"):
+            raise OSError("DesktopAutostart is Linux-only")
+        from pathlib import Path
+
+        base = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+        self._path = base / "autostart" / f"{app_id}.desktop"
+
+    def is_enabled(self) -> bool:
+        return self._path.exists()
+
+    def set_enabled(self, enabled: bool, command: list[str]) -> None:
+        import shlex
+
+        if not enabled:
+            self._path.unlink(missing_ok=True)
+            return
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._path.write_text(
+            "[Desktop Entry]\nType=Application\nName=Time Tracker\n"
+            f"Exec={shlex.join(command)}\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
+            encoding="utf-8",
+        )

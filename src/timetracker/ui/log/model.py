@@ -40,6 +40,7 @@ from timetracker.core.timeutil import zone
 from timetracker.data.entry_repo import EntryFilter, EntryRepo, ExportRow, Summary
 from timetracker.services.entry_service import EntryService
 from timetracker.services.label_service import LabelService
+from timetracker.ui.formatting import fmt_time
 
 PAGE_SIZE = 1_000
 GLYPH_EDITED = "✎"
@@ -290,9 +291,9 @@ class EntryTableModel(QAbstractTableModel):
             if col is Col.DATE:
                 return e.local_date.strftime("%a %d %b %Y")
             if col is Col.START:
-                return e.started_at_utc.astimezone(tz).strftime("%H:%M")
+                return fmt_time(e.started_at_utc.astimezone(tz))
             if col is Col.END:
-                return e.ended_at_utc.astimezone(tz).strftime("%H:%M")
+                return fmt_time(e.ended_at_utc.astimezone(tz))
             if col is Col.DURATION:
                 return format_hm(e.duration_seconds)
             if col is Col.CLIENT:

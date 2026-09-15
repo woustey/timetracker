@@ -5,8 +5,42 @@ from __future__ import annotations
 import os
 import sys
 from collections.abc import Callable
+from pathlib import Path
 
-from timetracker.platform.base import IdleProvider, Unavailable
+from timetracker.platform.base import AutostartProvider, IdleProvider, Unavailable
+
+
+def autostart_provider() -> AutostartProvider | Unavailable:
+    try:
+        if sys.platform == "win32":
+            from timetracker.platform.win32 import Win32Autostart
+
+            return Win32Autostart()
+        if sys.platform == "darwin":
+            from timetracker.platform.macos import LaunchAgentAutostart
+
+            return LaunchAgentAutostart()
+        if sys.platform.startswith("linux"):
+            from timetracker.platform.linux import DesktopAutostart
+
+            return DesktopAutostart()
+    except Exception as exc:  # noqa: BLE001
+        return Unavailable(f"start at login not available: {exc}")
+    return Unavailable(f"start at login not available on '{sys.platform}'")
+
+
+def launch_command() -> list[str]:
+    """How to start this installation again: the frozen exe, the GUI script, or ``pythonw -m``."""
+    exe = Path(sys.executable)
+    if getattr(sys, "frozen", False):
+        return [str(exe)]
+    script = exe.with_name("timetracker.exe" if sys.platform == "win32" else "timetracker")
+    if script.exists():
+        return [str(script)]
+    interpreter = exe.with_name("pythonw.exe") if sys.platform == "win32" else exe
+    if not interpreter.exists():
+        interpreter = exe
+    return [str(interpreter), "-m", "timetracker"]
 
 
 def idle_provider() -> IdleProvider | Unavailable:

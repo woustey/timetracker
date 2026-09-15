@@ -40,8 +40,10 @@ from timetracker.services.entry_service import EntryService
 from timetracker.services.export_service import ExportOptions, ExportService
 from timetracker.services.label_service import LabelService
 from timetracker.services.settings_service import (
+    KEY_FIRST_WEEKDAY,
     KEY_ROUNDING_MINUTES,
     KEY_ROUNDING_SCOPE,
+    KEY_TIME_FORMAT,
     SettingsService,
 )
 from timetracker.ui.dialogs.add_entry import AddEntryDialog
@@ -156,6 +158,7 @@ class LogWindow(QMainWindow):
 
         # -- table -----------------------------------------------------------
         self.table = QTableView()
+        self.table.setAccessibleName("Entries")
         self.table.setModel(self.model)
         self.table.setSortingEnabled(False)  # sorting is SQL; header clicks call sort_by()
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -220,6 +223,7 @@ class LogWindow(QMainWindow):
         self.table.selectionModel().selectionChanged.connect(self._on_selection_changed)
         entries.entries_changed.connect(lambda _uuids: self._on_entries_changed())
         labels.labels_changed.connect(lambda _d: self._reload_label_filters())
+        settings.setting_changed.connect(self._on_setting_changed)
         exporter.export_finished.connect(self._on_export_finished)
         exporter.export_failed.connect(self._on_export_failed)
 
@@ -242,7 +246,7 @@ class LogWindow(QMainWindow):
         if preset is DatePreset.ALL:
             self._show_range(None, None)
         elif preset is not DatePreset.CUSTOM:
-            start, end = preset_range(preset, self.today())
+            start, end = preset_range(preset, self.today(), self._settings.first_weekday)
             self._show_range(start, end)
         self.apply_filters()
 
@@ -280,7 +284,7 @@ class LogWindow(QMainWindow):
             start = date(qf.year(), qf.month(), qf.day())
             end = date(qt.year(), qt.month(), qt.day())
         else:
-            start, end = preset_range(preset, self.today())
+            start, end = preset_range(preset, self.today(), self._settings.first_weekday)
         method = self.method.currentData()
         return EntryFilter(
             date_from=start,
@@ -352,6 +356,10 @@ class LogWindow(QMainWindow):
                 + ", ".join(f"{t.name or '—'} {format_hm(t.seconds)}" for t in summary.by_type)
             )
         self.totals.setText("   ·   ".join(parts))
+
+    def _on_setting_changed(self, key: str) -> None:
+        if key in (KEY_FIRST_WEEKDAY, KEY_TIME_FORMAT):
+            self._on_preset_changed()
 
     def _on_entries_changed(self) -> None:
         self.model.refresh()

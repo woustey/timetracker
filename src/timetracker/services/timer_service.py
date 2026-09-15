@@ -354,9 +354,15 @@ class TimerService(QObject):
         """``HH:MM`` in the timer's own zone, for the running popover."""
         if self._running is None:
             return ""
-        return self._running.started_at_utc.astimezone(zone(self._running.tz_name)).strftime(
-            "%H:%M"
-        )
+        local = self._running.started_at_utc.astimezone(zone(self._running.tz_name))
+        return self._format_time(local)
+
+    @staticmethod
+    def _format_time(local: object) -> str:
+        from datetime import datetime
+
+        assert isinstance(local, datetime)
+        return local.strftime("%H:%M")
 
     def today_total_seconds(self) -> int:
         """Stored entries on today's local date; the live timer is not included."""

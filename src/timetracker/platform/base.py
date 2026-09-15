@@ -19,6 +19,16 @@ class IdleProvider(Protocol):
         ...
 
 
+class AutostartProvider(Protocol):
+    name: str
+
+    def is_enabled(self) -> bool: ...
+
+    def set_enabled(self, enabled: bool, command: list[str]) -> None:
+        """Register or remove *command* (argv) as a login item for the current user."""
+        ...
+
+
 @dataclass(frozen=True, slots=True)
 class Unavailable:
     reason: str

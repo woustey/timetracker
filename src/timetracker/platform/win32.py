@@ -73,3 +73,40 @@ class Win32IdleProvider:
         last_ms = int(info.dwTime)
         idle_ms = (now_ms - last_ms) & 0xFFFFFFFF
         return max(0.0, idle_ms / 1000.0)
+
+
+class Win32Autostart:
+    """A value under the per-user Run registry key (FR-108). No elevation needed."""
+
+    name = "Windows Run key"
+    _KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+
+    def __init__(self, value_name: str = "TimeTracker") -> None:
+        if sys.platform != "win32":
+            raise OSError("Win32Autostart is Windows-only")
+        self._value = value_name
+
+    def is_enabled(self) -> bool:
+        import winreg
+
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, self._KEY) as key:
+                winreg.QueryValueEx(key, self._value)
+                return True
+        except FileNotFoundError:
+            return False
+
+    def set_enabled(self, enabled: bool, command: list[str]) -> None:
+        import subprocess
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, self._KEY, 0, winreg.KEY_SET_VALUE) as key:
+            if enabled:
+                winreg.SetValueEx(
+                    key, self._value, 0, winreg.REG_SZ, subprocess.list2cmdline(command)
+                )
+            else:
+                try:
+                    winreg.DeleteValue(key, self._value)
+                except FileNotFoundError:
+                    pass

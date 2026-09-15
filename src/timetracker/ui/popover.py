@@ -51,6 +51,7 @@ class PopoverMode(Enum):
 class Popover(QWidget):
     dismissed = Signal()
     open_log_requested = Signal()
+    settings_requested = Signal()
 
     def __init__(
         self,
@@ -127,6 +128,12 @@ class Popover(QWidget):
         footer.addWidget(self.today)
         footer.addStretch(1)
         footer.addWidget(self.open_log)
+        self.open_settings = QToolButton()
+        self.open_settings.setText("Settings")
+        self.open_settings.setAccessibleName("Settings")
+        self.open_settings.setAutoRaise(True)
+        self.open_settings.clicked.connect(self._on_open_settings)
+        footer.addWidget(self.open_settings)
 
         root = QVBoxLayout(self.stopwatch_page)
         root.setContentsMargins(16, 12, 16, 12)
@@ -289,6 +296,10 @@ class Popover(QWidget):
     def _on_open_log(self) -> None:
         self.hide()
         self.open_log_requested.emit()
+
+    def _on_open_settings(self) -> None:
+        self.hide()
+        self.settings_requested.emit()
 
     # -- events --------------------------------------------------------------
 
