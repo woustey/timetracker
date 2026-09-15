@@ -292,7 +292,8 @@ def test_export_writes_file_through_the_window(
     window._exporter.export_sync(window._repo, options, target)  # noqa: SLF001
     text = target.read_text(encoding="utf-8-sig")
     assert target.read_bytes().count(b"\r\n") >= 4
-    assert "Rounding;6 minutes, rounded up per day × client × type" in text.replace('"', "")
+    d = options.csv_delimiter  # locale-dependent: ";" on a European locale, "," elsewhere
+    assert f"Rounding{d}6 minutes, rounded up per day × client × type" in text.replace('"', "")
 
 
 def test_add_entry_with_a_new_typed_client_outside_the_range(
