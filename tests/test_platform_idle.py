@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-import time
 
 import pytest
 
@@ -24,16 +23,43 @@ def test_factory_returns_a_provider_or_a_reason() -> None:
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows-only provider")
-def test_win32_provider_counts_up_without_input() -> None:
+def test_win32_provider_arithmetic_with_stubbed_kernel() -> None:
+    """Deterministic: stub the two Win32 calls, including the 32-bit tick wrap."""
+    import ctypes
+
     from timetracker.platform.win32 import Win32IdleProvider
 
-    provider = Win32IdleProvider()
-    first = provider.seconds_idle()
-    time.sleep(1.2)
-    second = provider.seconds_idle()
-    # No synthetic input here; the counter must have grown by about the sleep
-    # (unless a human touched the machine mid-test, in which case it reset).
-    assert second >= first + 1.0 or second < first
+    provider = Win32IdleProvider()  # real probe once: the calls exist and work
+
+    class FakeKernel32:
+        tick = 0
+
+        @staticmethod
+        def GetTickCount64() -> int:  # noqa: N802 - Win32 name
+            return FakeKernel32.tick
+
+    class FakeUser32:
+        last_input = 0
+
+        @staticmethod
+        def GetLastInputInfo(ref: object) -> int:  # noqa: N802 - Win32 name
+            info = ctypes.cast(ref, ctypes.POINTER(provider._struct)).contents  # noqa: SLF001
+            info.dwTime = FakeUser32.last_input
+            return 1
+
+    provider._kernel32 = FakeKernel32  # noqa: SLF001
+    provider._user32 = FakeUser32  # noqa: SLF001
+
+    FakeUser32.last_input, FakeKernel32.tick = 10_000, 10_000
+    assert provider.seconds_idle() == 0.0
+    FakeKernel32.tick = 10_000 + 90_500
+    assert provider.seconds_idle() == 90.5
+    # GetTickCount wraps every 49.7 days; dwTime is the low 32 bits.
+    FakeUser32.last_input, FakeKernel32.tick = 0xFFFF_FF00, 0x1_0000_0100
+    assert provider.seconds_idle() == 0.512
+    # Never negative even if the last-input tick is somehow ahead.
+    FakeUser32.last_input, FakeKernel32.tick = 5_000, 4_000
+    assert provider.seconds_idle() >= 0.0
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="macOS-only provider")
