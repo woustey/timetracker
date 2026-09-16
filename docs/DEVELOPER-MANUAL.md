@@ -1,6 +1,6 @@
 # Time Tracker — developer manual
 
-*For the 1.0.0 code base (tag `v1.0.0`) · written 16 September 2026 ·
+*For the 1.1 code base on `main` (1.0.0 is tag `v1.0.0`) · written 16 September 2026 ·
 commands shown were run on Windows 11 with Python 3.13.0; the macOS/Linux
 form is given where it differs.*
 

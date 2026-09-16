@@ -4,7 +4,8 @@ A tray-resident, local-only time tracker for people who bill or allocate their
 time across several clients. Two ways to record time: a labelled **Start–Stop**
 stopwatch, and an **Add Time** matrix that logs a finished block in three
 clicks. Everything lives in one SQLite file on your machine. No account, no
-network, no telemetry.
+network, no telemetry. Since 1.1: pause/resume, a day timeline and a weekly
+grid, export presets, CSV import and opt-in reminders.
 
 - Product requirements: [`docs/PRD-time-tracker.md`](docs/PRD-time-tracker.md)
 - Technical design and milestones: [`docs/PRD-time-tracker-qt.md`](docs/PRD-time-tracker-qt.md)

@@ -1,6 +1,7 @@
 # Time Tracker — user manual
 
-*For Time Tracker 1.0.0 · written 16 September 2026 · Windows screenshots
+*For Time Tracker 1.1 (1.0.0 plus the features marked as new) · written 16
+September 2026 · Windows screenshots
 described in words; macOS and Linux differ only where stated.*
 
 ## Overview
@@ -275,10 +276,11 @@ same file corrupts it. Uninstalling the app leaves the folder in place.
 **Duration forms accepted everywhere:** `45` (minutes), `1:30`, `1h15`, `2h`,
 `0:05`.
 
-**Tray menu:** Start / Stop · Add Time… · Open log… · Settings… · Quit.
+**Tray menu:** Start / Stop · Pause / Resume (while a timer is active) · Add Time… · Open log… · Settings… · Quit.
 
 **Popover, stopwatch page (380 px wide):** elapsed time, client, category,
-Start/Stop, Add Time…, *Open log*, *Settings*.
+Start/Stop with Pause/Resume beside it while a timer is active, Add Time…,
+*Open log*, *Settings*.
 **Popover, Add Time page (640 px wide):** ‹ Timer, pending total,
 `+6min +15min +30min +45min Custom…`, category chips + Custom…, client chips
 + Custom…, note; footer with today's total, **Clear**, **Add**.

@@ -60,10 +60,10 @@ color:var(--muted);font-size:.85rem}
 <main>
 
 <h1>Time Tracker — product owner manual</h1>
-<p><em>For release 1.0.0 (tag <code>v1.0.0</code>, 16 September 2026) · written 16 September 2026.</em></p>
+<p><em>For release 1.1.0 (unreleased on <code>main</code>; 1.0.0 is tag <code>v1.0.0</code>, 16 September 2026) · written 16 September 2026, refreshed the same day for 1.1.</em></p>
 <h2>Overview</h2>
 <p><strong>Who this is for:</strong> the person who owns the product — decides what gets built, accepts a release, and answers &quot;does it do X?&quot; — without reading code.</p>
-<p><strong>After reading, you can</strong> say what 1.0.0 does and does not do against the requirements you wrote, verify a release yourself in an hour, read the success metrics out of the data, and steer the next release: which backlog items exist, what a change costs, and which decisions are already settled.</p>
+<p><strong>After reading, you can</strong> say what 1.1 does and does not do against the requirements you wrote, verify a release yourself in an hour, read the success metrics out of the data, and steer the next release: which backlog items exist, what a change costs, and which decisions are already settled.</p>
 <p>The product is defined by two documents, both in this folder:</p>
 <table><thead><tr><th>Document</th><th>Role</th></tr></thead><tbody>
 <tr><td><a href="PRD-time-tracker.md"><code>PRD-time-tracker.md</code></a> (PRD-01)</td><td><em>what</em>: goals, personas, functional requirements <code>FR-nnn</code> with priority M / S / C, non-functional <code>NFR-nn</code>, success metrics §13, open questions §15</td></tr>
@@ -93,16 +93,16 @@ color:var(--muted);font-size:.85rem}
 <p>Expected outcome for 1.0.0: all seven steps passed on 15–16 September 2026, with two caveats recorded in <em>Verification</em> below.</p>
 <h2>Common tasks</h2>
 <h3>Answer &quot;does 1.0.0 do X?&quot; — requirements coverage</h3>
-<p>Every <strong>M</strong> requirement in PRD-01 is implemented; every <strong>S</strong> and <strong>C</strong> is not, by the rule agreed at the start, with three exceptions you opted into.</p>
-<table><thead><tr><th>Area (PRD-01 §8)</th><th>Implemented (M)</th><th>Not in 1.0.0 (S / C)</th></tr></thead><tbody>
-<tr><td>Shell &amp; tray (FR-101–111)</td><td>tray-only app, popover, context menu, three icon states, tooltip, single instance, start at login, no-tray fallback, quit prompt</td><td>FR-106 elapsed time as tray text (macOS), FR-109 global hotkeys</td></tr>
-<tr><td>Start–Stop (FR-201–214)</td><td>one-click start, sticky labels, one timer at a time, monotonic timing, 30 s heartbeat + crash recovery, idle prompt with four outcomes, sleep/lock handling, long-running prompt</td><td>FR-205 stop sheet, FR-212 pause/resume, FR-213 continue, FR-214 minimum-duration confirmation</td></tr>
+<p>Every <strong>M</strong> requirement in PRD-01 is implemented (1.0.0), plus the three extras you opted into and, since 1.1, the six <strong>S/C</strong> items PRD-01 §14 names for v1.1 (in bold). Everything else marked S or C is still not built.</p>
+<table><thead><tr><th>Area (PRD-01 §8)</th><th>Implemented</th><th>Not built (S / C)</th></tr></thead><tbody>
+<tr><td>Shell &amp; tray (FR-101–111)</td><td>tray-only app, popover, context menu, four icon states (paused added in 1.1), tooltip, single instance, start at login, no-tray fallback, quit prompt</td><td>FR-106 elapsed time as tray text (macOS), FR-109 global hotkeys</td></tr>
+<tr><td>Start–Stop (FR-201–214)</td><td>one-click start, sticky labels, one timer at a time, monotonic timing, 30 s heartbeat + crash recovery, idle prompt with four outcomes, sleep/lock handling, long-running prompt, <strong>FR-212 pause/resume (1.1)</strong></td><td>FR-205 stop sheet, FR-213 continue, FR-214 minimum-duration confirmation</td></tr>
 <tr><td>Add Time matrix (FR-301–318)</td><td>four columns, additive chips, Custom duration, clear/subtract, single-select labels, note, Add gated on mandatory labels, toast + undo, sticky labels, full keyboard</td><td>FR-313 express mode, FR-316 date stepper, FR-317 day total in header, FR-318 configurable chips</td></tr>
 <tr><td>Labels (FR-401–409)</td><td>custom values persist, case/whitespace normalisation, near-duplicate offer, rename, archive, seed types + first-run client prompt</td><td>FR-406 merge, FR-407 pin, FR-408 colour</td></tr>
-<tr><td>Log (FR-501–510)</td><td>every entry, sortable columns, presets + custom range, client/type/method/search filters, totals, inline edit with edited flag, delete + undo, <strong>FR-508 overlap flags (opted in)</strong></td><td>FR-507 split/merge, FR-509 day timeline, FR-510 weekly grid</td></tr>
-<tr><td>Export (FR-601–609)</td><td>CSV (BOM, RFC 4180, delimiter setting), XLSX (real durations, frozen header, totals), fixed columns, rounding 6/10/15/30 up, never mutates data, scope per entry / per group</td><td>FR-607 aggregated export, FR-608 presets, FR-609 PDF</td></tr>
-<tr><td>Settings (FR-701–703)</td><td>start at login, idle threshold, mandatory labels, rounding, delimiter, export folder, theme, first weekday, 12/24 h; stored in the database</td><td>FR-702 reminders; the stop-confirmation and minimum-duration settings (their features are S)</td></tr>
-<tr><td>Data (FR-801–806)</td><td>one documented file + settings inside it, backup and validated restore, full export CSV + JSON, versioned automatic migrations with pre-migration copy</td><td>FR-803 rolling backups, FR-805 CSV import</td></tr>
+<tr><td>Log (FR-501–510)</td><td>every entry, sortable columns, presets + custom range, client/type/method/search filters, totals, inline edit with edited flag, delete + undo, FR-508 overlap flags (opted in), <strong>FR-509 day timeline (1.1)</strong>, <strong>FR-510 weekly grid (1.1)</strong></td><td>FR-507 split/merge</td></tr>
+<tr><td>Export (FR-601–609)</td><td>CSV (BOM, RFC 4180, delimiter setting), XLSX (real durations, frozen header, totals), column selection (FR-603, UI since 1.1), rounding 6/10/15/30 up, never mutates data, scope per entry / per group, <strong>FR-608 presets (1.1)</strong></td><td>FR-607 aggregated export, FR-609 PDF</td></tr>
+<tr><td>Settings (FR-701–703)</td><td>start at login, idle threshold, mandatory labels, rounding, delimiter, export folder, theme, first weekday, 12/24 h, <strong>FR-702 reminders (1.1, off by default)</strong>; stored in the database</td><td>the stop-confirmation and minimum-duration settings (their features are S)</td></tr>
+<tr><td>Data (FR-801–806)</td><td>one documented file + settings inside it, backup and validated restore, full export CSV + JSON, versioned automatic migrations with pre-migration copy (schema v4 since 1.1), <strong>FR-805 CSV import (1.1)</strong></td><td>FR-803 rolling backups</td></tr>
 </tbody></table>
 <p>Opted-in extras beyond M: overlap flags (FR-508), an <strong>Add entry…</strong> form in the log, and a third record method <strong>Manual</strong> so hand-added entries are distinguishable from stopwatch and matrix entries (this needed schema version 3 — a decision recorded in <code>CLAUDE.md</code>).</p>
 <p>Non-functional, all measured: NFR-01 boot 1.03 s installed / 0.89 s from source; NFR-02 popover and commit latency tested; NFR-03 96 MB RSS installed; NFR-04 50 000-entry log under 200 ms in the test; NFR-05/06 enforced by a test and by having no network module in the code; NFR-07 heartbeat every 30 s with recovery test; NFR-08 three platforms built by CI; NFR-09 20 s; NFR-10 <code>DATA-FORMAT.md</code>.</p>
@@ -127,8 +127,8 @@ color:var(--muted);font-size:.85rem}
 <li><strong>Anything with a network, an account, AI or telemetry</strong>: out of scope by NFR-05/06 and the project rules; a test will fail. This is a product decision to revisit, not a ticket.</li>
 <li><strong>A fifth runtime dependency</strong>: the developer must ask you; say no unless it replaces code you would otherwise pay to maintain.</li>
 </ul>
-<h3>Prioritise the 1.1 backlog</h3>
-<p>PRD-01 §14 names v1.1 as: pause/resume (FR-212), day timeline (FR-509), weekly grid (FR-510), export presets (FR-608), CSV import (FR-805), reminders (FR-702). Everything marked S or C in the coverage table is eligible. Two items came out of 1.0 acceptance and are cheap:</p>
+<h3>Prioritise the next backlog</h3>
+<p>The six v1.1 items PRD-01 §14 named are built (see the coverage table and <code>RELEASE-NOTES.md</code>). Everything still marked S or C in the coverage table is eligible for 1.2; PRD-01 §14&#x27;s v2 candidates (calendar read-only integration, Toggl/Clockify export, a project dimension, encrypted sync) need the NG2/NG6 conversation first. Two items came out of 1.0 acceptance and are cheap:</p>
 <ul>
 <li>Code signing (Windows Authenticode, Apple notarisation): removes the <em>Windows protected your PC</em> and Gatekeeper warnings. Needs a purchased certificate; <code>RELEASE-CHECKLIST.md</code> §8 lists what to buy.</li>
 <li>The Windows silent install does not add a Desktop shortcut unless asked (<code>/TASKS=desktopicon</code>); the wizard does. Documentation-only fix.</li>
@@ -141,7 +141,9 @@ color:var(--muted);font-size:.85rem}
 <tr><td>Single instance via a file lock, not a local socket</td><td>NFR-05 stays verifiable</td></tr>
 <tr><td>Popover remembers its last page</td><td>the ≤ 4-click metric holds</td></tr>
 <tr><td>Rounding lives only in exports; the file states the rounding used</td><td>stored minutes are always the truth</td></tr>
-<tr><td>Three record methods (Manual added)</td><td>schema v3; exports show <em>Manual</em></td></tr>
+<tr><td>Three record methods (Manual added)</td><td>schema v3; exports show <em>Manual</em>; CSV-imported rows are <em>Manual</em> too</td></tr>
+<tr><td>A pause is a wall-clock gap, not a measured duration (1.1)</td><td><code>paused_seconds</code> is recorded, never billed; stopping while paused ends the entry at the pause</td></tr>
+<tr><td>Import may derive a duration from start/end — the only place (1.1)</td><td>it is the other tool&#x27;s data; from then on the stored duration is the fact</td></tr>
 <tr><td>Log filtering in SQL, not in the UI layer</td><td>50 000 entries stay under 200 ms</td></tr>
 <tr><td>Restore relaunches the app</td><td>SQLite cannot swap a file under an open connection</td></tr>
 <tr><td>Binaries unsigned in 1.0</td><td>one-time warning on first launch, documented</td></tr>
@@ -158,8 +160,8 @@ color:var(--muted);font-size:.85rem}
 </tbody></table>
 <h2>Reference</h2>
 <p><strong>Requirement ids</strong>: FR-1xx shell, FR-2xx stopwatch, FR-3xx matrix, FR-4xx labels, FR-5xx log, FR-6xx export, FR-7xx settings, FR-8xx data; NFR-01..10. Priority letters: M must, S should, C could.</p>
-<p><strong>Milestones delivered</strong> (PRD-02 §13, dates from <code>MILESTONES.md</code>): M0 skeleton, M1 data layer, M2 Start–Stop, M3 matrix (11 Sep 2026); M4 trust, M5 document, M6 polish, M7 ship (15 Sep 2026); tag <code>v1.0.0</code> 16 Sep 2026.</p>
-<p><strong>Measured for 1.0.0</strong>: first entry 20 s; boot 1.03 s installed, 0.89 s source; RSS 96 MB installed, 73 MB source; idle CPU 0 ticks / 20 s; log operations at 50 000 rows under 200 ms; 477 automated tests, 5 skipped (other-platform tests).</p>
+<p><strong>Milestones delivered</strong> (PRD-02 §13, dates from <code>MILESTONES.md</code>): M0 skeleton, M1 data layer, M2 Start–Stop, M3 matrix (11 Sep 2026); M4 trust, M5 document, M6 polish, M7 ship (15 Sep 2026); tag <code>v1.0.0</code> 16 Sep 2026; v1.1 backlog (FR-212, 702, 608, 805, 509, 510) on <code>main</code> 16 Sep 2026.</p>
+<p><strong>Measured for 1.0.0</strong>: first entry 20 s; boot 1.03 s installed, 0.89 s source; RSS 96 MB installed, 73 MB source; idle CPU 0 ticks / 20 s; log operations at 50 000 rows under 200 ms; 477 automated tests, 5 skipped (other-platform tests). <strong>1.1 on <code>main</code></strong>: 547 tests, 5 skipped; the NFR numbers were not re-measured on an installed 1.1 build (see <em>Verification</em>).</p>
 <p><strong>Where things are</strong></p>
 <table><thead><tr><th>Question</th><th>Place</th></tr></thead><tbody>
 <tr><td>binaries and release notes</td><td>GitHub › Releases</td></tr>
@@ -182,12 +184,15 @@ color:var(--muted);font-size:.85rem}
 <li>Requirements coverage table cross-checked against PRD-01 §8 priorities and <code>MILESTONES.md</code> › <em>What is deliberately not in v1</em>.</li>
 <li>Metric query executed read-only against the owner&#x27;s database on 16 September 2026 (result quoted).</li>
 <li>Silent per-user install of <code>TimeTracker-1.0.0-setup.exe</code> on the owner&#x27;s PC: 683 files, Start Menu entry, uninstaller, no elevation (M7).</li>
+<li>1.1 coverage table cross-checked against the six FR commits on <code>main</code> (<code>65541ce</code> … <code>2c1181a</code>, 16 September 2026), each with its own tests; CI green on every one of them.</li>
 </ul>
 <p><strong>Assumed / not done</strong>:</p>
 <ul>
 <li>No Windows Sandbox or fresh-VM install: the feature is not enabled on the acceptance PC. The installed-build run with an empty data folder stood in for it.</li>
 <li>macOS and Linux artefacts are exercised only by the release workflow&#x27;s smoke test; nobody has clicked through them.</li>
 <li>The &quot;share of workdays&quot; and &quot;hours previously lost&quot; metrics need four weeks of real use; the sample database has seven days.</li>
+<li>The 1.1 features have not been clicked through on a real desktop by a person: the Day and Week views were inspected as offscreen renders, the rest is covered by automated UI tests only. No 1.1 binary has been built or installed yet; the 1.0.0 NFR numbers stand until it is.</li>
+<li>1.0.0&#x27;s exports and backups state <code>Time Tracker 0.0.1</code> in their footer (<code>__version__</code> was never bumped); fixed in 1.1 with a test.</li>
 </ul>
 <footer>Rendered from Markdown by manual-writing render_html.py. The Markdown source is the authority.</footer>
 </main>

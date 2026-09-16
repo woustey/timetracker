@@ -125,3 +125,13 @@ def test_installer_script_and_workflow_are_consistent() -> None:
     assert "--include-package=timetracker.data.migrations" in build  # loaded by name
     assert "--windows-console-mode=disable" in build
     assert "--macos-app-mode=background" in build  # LSUIElement
+
+
+def test_package_version_matches_pyproject() -> None:
+    """1.0.0 shipped with __version__ still at 0.0.1 in export footers and backups; never again."""
+    import tomllib
+
+    from timetracker import __version__
+
+    with open(ROOT / "pyproject.toml", "rb") as fh:
+        assert __version__ == tomllib.load(fh)["project"]["version"]

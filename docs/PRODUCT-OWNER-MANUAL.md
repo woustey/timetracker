@@ -1,14 +1,14 @@
 # Time Tracker — product owner manual
 
-*For release 1.0.0 (tag `v1.0.0`, 16 September 2026) · written 16 September
-2026.*
+*For release 1.1.0 (unreleased on `main`; 1.0.0 is tag `v1.0.0`, 16 September
+2026) · written 16 September 2026, refreshed the same day for 1.1.*
 
 ## Overview
 
 **Who this is for:** the person who owns the product — decides what gets
 built, accepts a release, and answers "does it do X?" — without reading code.
 
-**After reading, you can** say what 1.0.0 does and does not do against the
+**After reading, you can** say what 1.1 does and does not do against the
 requirements you wrote, verify a release yourself in an hour, read the
 success metrics out of the data, and steer the next release: which backlog
 items exist, what a change costs, and which decisions are already settled.
@@ -84,19 +84,20 @@ with two caveats recorded in *Verification* below.
 
 ### Answer "does 1.0.0 do X?" — requirements coverage
 
-Every **M** requirement in PRD-01 is implemented; every **S** and **C** is
-not, by the rule agreed at the start, with three exceptions you opted into.
+Every **M** requirement in PRD-01 is implemented (1.0.0), plus the three
+extras you opted into and, since 1.1, the six **S/C** items PRD-01 §14 names
+for v1.1 (in bold). Everything else marked S or C is still not built.
 
-| Area (PRD-01 §8) | Implemented (M) | Not in 1.0.0 (S / C) |
+| Area (PRD-01 §8) | Implemented | Not built (S / C) |
 |---|---|---|
-| Shell & tray (FR-101–111) | tray-only app, popover, context menu, three icon states, tooltip, single instance, start at login, no-tray fallback, quit prompt | FR-106 elapsed time as tray text (macOS), FR-109 global hotkeys |
-| Start–Stop (FR-201–214) | one-click start, sticky labels, one timer at a time, monotonic timing, 30 s heartbeat + crash recovery, idle prompt with four outcomes, sleep/lock handling, long-running prompt | FR-205 stop sheet, FR-212 pause/resume, FR-213 continue, FR-214 minimum-duration confirmation |
+| Shell & tray (FR-101–111) | tray-only app, popover, context menu, four icon states (paused added in 1.1), tooltip, single instance, start at login, no-tray fallback, quit prompt | FR-106 elapsed time as tray text (macOS), FR-109 global hotkeys |
+| Start–Stop (FR-201–214) | one-click start, sticky labels, one timer at a time, monotonic timing, 30 s heartbeat + crash recovery, idle prompt with four outcomes, sleep/lock handling, long-running prompt, **FR-212 pause/resume (1.1)** | FR-205 stop sheet, FR-213 continue, FR-214 minimum-duration confirmation |
 | Add Time matrix (FR-301–318) | four columns, additive chips, Custom duration, clear/subtract, single-select labels, note, Add gated on mandatory labels, toast + undo, sticky labels, full keyboard | FR-313 express mode, FR-316 date stepper, FR-317 day total in header, FR-318 configurable chips |
 | Labels (FR-401–409) | custom values persist, case/whitespace normalisation, near-duplicate offer, rename, archive, seed types + first-run client prompt | FR-406 merge, FR-407 pin, FR-408 colour |
-| Log (FR-501–510) | every entry, sortable columns, presets + custom range, client/type/method/search filters, totals, inline edit with edited flag, delete + undo, **FR-508 overlap flags (opted in)** | FR-507 split/merge, FR-509 day timeline, FR-510 weekly grid |
-| Export (FR-601–609) | CSV (BOM, RFC 4180, delimiter setting), XLSX (real durations, frozen header, totals), fixed columns, rounding 6/10/15/30 up, never mutates data, scope per entry / per group | FR-607 aggregated export, FR-608 presets, FR-609 PDF |
-| Settings (FR-701–703) | start at login, idle threshold, mandatory labels, rounding, delimiter, export folder, theme, first weekday, 12/24 h; stored in the database | FR-702 reminders; the stop-confirmation and minimum-duration settings (their features are S) |
-| Data (FR-801–806) | one documented file + settings inside it, backup and validated restore, full export CSV + JSON, versioned automatic migrations with pre-migration copy | FR-803 rolling backups, FR-805 CSV import |
+| Log (FR-501–510) | every entry, sortable columns, presets + custom range, client/type/method/search filters, totals, inline edit with edited flag, delete + undo, FR-508 overlap flags (opted in), **FR-509 day timeline (1.1)**, **FR-510 weekly grid (1.1)** | FR-507 split/merge |
+| Export (FR-601–609) | CSV (BOM, RFC 4180, delimiter setting), XLSX (real durations, frozen header, totals), column selection (FR-603, UI since 1.1), rounding 6/10/15/30 up, never mutates data, scope per entry / per group, **FR-608 presets (1.1)** | FR-607 aggregated export, FR-609 PDF |
+| Settings (FR-701–703) | start at login, idle threshold, mandatory labels, rounding, delimiter, export folder, theme, first weekday, 12/24 h, **FR-702 reminders (1.1, off by default)**; stored in the database | the stop-confirmation and minimum-duration settings (their features are S) |
+| Data (FR-801–806) | one documented file + settings inside it, backup and validated restore, full export CSV + JSON, versioned automatic migrations with pre-migration copy (schema v4 since 1.1), **FR-805 CSV import (1.1)** | FR-803 rolling backups |
 
 Opted-in extras beyond M: overlap flags (FR-508), an **Add entry…** form in
 the log, and a third record method **Manual** so hand-added entries are
@@ -148,12 +149,14 @@ method spelled out); `DATA-FORMAT.md` documents every table.
 - **A fifth runtime dependency**: the developer must ask you; say no unless
   it replaces code you would otherwise pay to maintain.
 
-### Prioritise the 1.1 backlog
+### Prioritise the next backlog
 
-PRD-01 §14 names v1.1 as: pause/resume (FR-212), day timeline (FR-509),
-weekly grid (FR-510), export presets (FR-608), CSV import (FR-805),
-reminders (FR-702). Everything marked S or C in the coverage table is
-eligible. Two items came out of 1.0 acceptance and are cheap:
+The six v1.1 items PRD-01 §14 named are built (see the coverage table and
+`RELEASE-NOTES.md`). Everything still marked S or C in the coverage table is
+eligible for 1.2; PRD-01 §14's v2 candidates (calendar read-only
+integration, Toggl/Clockify export, a project dimension, encrypted sync)
+need the NG2/NG6 conversation first. Two items came out of 1.0 acceptance
+and are cheap:
 
 - Code signing (Windows Authenticode, Apple notarisation): removes the
   *Windows protected your PC* and Gatekeeper warnings. Needs a purchased
@@ -173,7 +176,9 @@ that most often come up again:
 | Single instance via a file lock, not a local socket | NFR-05 stays verifiable |
 | Popover remembers its last page | the ≤ 4-click metric holds |
 | Rounding lives only in exports; the file states the rounding used | stored minutes are always the truth |
-| Three record methods (Manual added) | schema v3; exports show *Manual* |
+| Three record methods (Manual added) | schema v3; exports show *Manual*; CSV-imported rows are *Manual* too |
+| A pause is a wall-clock gap, not a measured duration (1.1) | `paused_seconds` is recorded, never billed; stopping while paused ends the entry at the pause |
+| Import may derive a duration from start/end — the only place (1.1) | it is the other tool's data; from then on the stored duration is the fact |
 | Log filtering in SQL, not in the UI layer | 50 000 entries stay under 200 ms |
 | Restore relaunches the app | SQLite cannot swap a file under an open connection |
 | Binaries unsigned in 1.0 | one-time warning on first launch, documented |
@@ -198,12 +203,14 @@ Priority letters: M must, S should, C could.
 
 **Milestones delivered** (PRD-02 §13, dates from `MILESTONES.md`): M0
 skeleton, M1 data layer, M2 Start–Stop, M3 matrix (11 Sep 2026); M4 trust,
-M5 document, M6 polish, M7 ship (15 Sep 2026); tag `v1.0.0` 16 Sep 2026.
+M5 document, M6 polish, M7 ship (15 Sep 2026); tag `v1.0.0` 16 Sep 2026;
+v1.1 backlog (FR-212, 702, 608, 805, 509, 510) on `main` 16 Sep 2026.
 
 **Measured for 1.0.0**: first entry 20 s; boot 1.03 s installed, 0.89 s
 source; RSS 96 MB installed, 73 MB source; idle CPU 0 ticks / 20 s; log
 operations at 50 000 rows under 200 ms; 477 automated tests, 5 skipped
-(other-platform tests).
+(other-platform tests). **1.1 on `main`**: 547 tests, 5 skipped; the NFR
+numbers were not re-measured on an installed 1.1 build (see *Verification*).
 
 **Where things are**
 
@@ -239,6 +246,9 @@ operations at 50 000 rows under 200 ms; 477 automated tests, 5 skipped
   September 2026 (result quoted).
 - Silent per-user install of `TimeTracker-1.0.0-setup.exe` on the owner's PC:
   683 files, Start Menu entry, uninstaller, no elevation (M7).
+- 1.1 coverage table cross-checked against the six FR commits on `main`
+  (`65541ce` … `2c1181a`, 16 September 2026), each with its own tests; CI
+  green on every one of them.
 
 **Assumed / not done**:
 
@@ -249,3 +259,9 @@ operations at 50 000 rows under 200 ms; 477 automated tests, 5 skipped
   smoke test; nobody has clicked through them.
 - The "share of workdays" and "hours previously lost" metrics need four weeks
   of real use; the sample database has seven days.
+- The 1.1 features have not been clicked through on a real desktop by a
+  person: the Day and Week views were inspected as offscreen renders, the
+  rest is covered by automated UI tests only. No 1.1 binary has been built
+  or installed yet; the 1.0.0 NFR numbers stand until it is.
+- 1.0.0's exports and backups state `Time Tracker 0.0.1` in their footer
+  (`__version__` was never bumped); fixed in 1.1 with a test.

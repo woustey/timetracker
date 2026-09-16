@@ -13,4 +13,4 @@ Total (decimal hours);3.2
 Rounding;6 minutes, rounded up per day × client × type
 Filter;all entries
 Exported;2026-09-11 12:00:00 CEST
-Application;Time Tracker 0.0.1
+Application;Time Tracker 1.1.0

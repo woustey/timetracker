@@ -27,6 +27,12 @@ Everything in 1.0.0, plus the v1.1 backlog from PRD-01 §14:
   `h:mm` per cell, total row and column, week start per your setting;
   double-click a cell to open that day.
 
+Fixed: exports and backups made by 1.0.0 say `Time Tracker 0.0.1` in their
+footer / info sheet (the package version string was never bumped); a test now
+keeps it equal to the release version. The Windows *Start at login* entry is
+written with the long path. Upgrading from 1.0.0 migrates the database to
+schema v4 on first launch and keeps a `timetracker-pre-v3.sqlite3` copy.
+
 ---
 
 # Time Tracker 1.0.0

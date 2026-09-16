@@ -60,7 +60,7 @@ color:var(--muted);font-size:.85rem}
 <main>
 
 <h1>Time Tracker — user manual</h1>
-<p><em>For Time Tracker 1.0.0 · written 16 September 2026 · Windows screenshots described in words; macOS and Linux differ only where stated.</em></p>
+<p><em>For Time Tracker 1.1 (1.0.0 plus the features marked as new) · written 16 September 2026 · Windows screenshots described in words; macOS and Linux differ only where stated.</em></p>
 <h2>Overview</h2>
 <p><strong>Who this is for:</strong> someone who has never used Time Tracker and wants to know where their working hours went — per client, per kind of work — without learning a new tool. No technical knowledge is assumed.</p>
 <p><strong>After reading, you can</strong> record your working time in two ways (a stopwatch and a quick &quot;add 15 minutes&quot; grid), look the entries up, correct them, and hand a spreadsheet of them to whoever needs it.</p>
@@ -172,8 +172,8 @@ color:var(--muted);font-size:.85rem}
 </tbody></table>
 <p>Back it up with <em>Settings › Data › Back up now</em> (timestamped copy next to it). Do not put the folder on OneDrive or Dropbox: two machines writing the same file corrupts it. Uninstalling the app leaves the folder in place.</p>
 <p><strong>Duration forms accepted everywhere:</strong> <code>45</code> (minutes), <code>1:30</code>, <code>1h15</code>, <code>2h</code>, <code>0:05</code>.</p>
-<p><strong>Tray menu:</strong> Start / Stop · Add Time… · Open log… · Settings… · Quit.</p>
-<p><strong>Popover, stopwatch page (380 px wide):</strong> elapsed time, client, category, Start/Stop, Add Time…, <em>Open log</em>, <em>Settings</em>. <strong>Popover, Add Time page (640 px wide):</strong> ‹ Timer, pending total, <code>+6min +15min +30min +45min Custom…</code>, category chips + Custom…, client chips + Custom…, note; footer with today&#x27;s total, <strong>Clear</strong>, <strong>Add</strong>.</p>
+<p><strong>Tray menu:</strong> Start / Stop · Pause / Resume (while a timer is active) · Add Time… · Open log… · Settings… · Quit.</p>
+<p><strong>Popover, stopwatch page (380 px wide):</strong> elapsed time, client, category, Start/Stop with Pause/Resume beside it while a timer is active, Add Time…, <em>Open log</em>, <em>Settings</em>. <strong>Popover, Add Time page (640 px wide):</strong> ‹ Timer, pending total, <code>+6min +15min +30min +45min Custom…</code>, category chips + Custom…, client chips + Custom…, note; footer with today&#x27;s total, <strong>Clear</strong>, <strong>Add</strong>.</p>
 <p><strong>Log columns:</strong> (flags) · Date · Start · End · Total · Client · Type · Method · Note. Methods: <em>Start-Stop</em>, <em>Add Time</em>, <em>Manual</em>.</p>
 <p><strong>Export columns:</strong> Date, Start, End, Duration (decimal hours), Duration (h:mm), Client, Type, Record method, Note — then, in CSV, footer lines <em>Exported</em>, <em>Application</em> and the rounding used.</p>
 <p><strong>Defaults:</strong> idle threshold 10 min; long-running warning 12 h; client and category required in Add Time; rounding none, scope per day × client × type; theme system; week starts Monday; 24 h clock.</p>
