@@ -8,6 +8,13 @@ the written checklist per release. Tick every line on each OS you ship for.
 - [ ] `pytest` green locally and CI green on the three OSes
 - [ ] `pyproject.toml` version bumped; `docs/RELEASE-NOTES.md` updated
 - [ ] `python scripts/make_icons.py` if the artwork changed
+- [ ] **Dry-run the release build first**: *Actions › Release › Run workflow* on
+      `main` (`gh workflow run release.yml --ref main`). It builds and smoke-tests
+      all three platforms and skips publishing because there is no tag. Only tag
+      when it is green — 1.0.0 needed three rounds for bugs a local Windows build
+      cannot show (a Windows-only dependency passed to Nuitka on every OS, the
+      binary colliding with the `timetracker/` data directory on case-sensitive
+      systems, shell scripts committed without the executable bit)
 - [ ] Tag `vX.Y.Z` → the *Release* workflow builds the Windows installer + portable zip,
       the macOS DMG and the Linux AppImage + tar.gz, and publishes a GitHub Release
 

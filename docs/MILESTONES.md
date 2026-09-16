@@ -197,6 +197,16 @@ and third-party notices, and this summary.
 documented); hands-on testing of the macOS and Linux artefacts (built on CI
 runners only; Linux is best-effort per R1).
 
+**Release (16 Sep):** the first `v1.0.0` tag built Windows and failed macOS and
+Linux; three fixes followed (`0cbdaf4` tzdata is win32-only, `f98901d` binary
+renamed `timetracker.bin` off Windows so it no longer collides with the
+`timetracker/` data directory, `1da5ae0` executable bits on the packaging
+scripts and the `.app` picked over the intermediate `.dist`), each verified by
+a `workflow_dispatch` dry run on `main` before the tag was moved to `1da5ae0`.
+Published with five assets; CI-runner measurements: Windows 0.41 s / 69 MB,
+Linux 0.63 s / 96 MB, macOS 1.98 s / 149 MB. Three manuals (user, developer,
+product owner; Markdown + self-contained HTML) were added the same day.
+
 ---
 
 ## What is deliberately not in v1
@@ -221,3 +231,6 @@ in PRD-01 §3.2: teams, sync, invoicing, automatic capture, mobile, integrations
   landing page, the 136 ms grouped scan).
 - The owner's own hands found what tests could not: the console window, the
   unreadable grey icon, "cannot add ASICS", the unclear "Custom…" range.
+- A platform you only build on CI is a platform you have not built. Every
+  macOS/Linux packaging bug was invisible on Windows; the release workflow's
+  `workflow_dispatch` dry run is now step 0 of the checklist, before any tag.

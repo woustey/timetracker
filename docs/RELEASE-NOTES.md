@@ -45,3 +45,9 @@ Back up from Settings › Data; don't put the folder on a sync service.
 Pause/resume, global hotkeys, merge/pin/colour for labels, CSV import, rolling
 backups and the weekly grid are on the v1.1 list. The macOS and Linux builds
 are produced by CI and have not been hand-tested on hardware.
+
+Measured on the CI runners at release (`TIMETRACKER_MEASURE_BOOT`, cold
+start, 3 s idle): Windows 0.41 s / 69 MB, Linux 0.63 s / 96 MB, macOS (Apple
+silicon) 1.98 s / 149 MB. macOS sits at the edge of the ≤ 2 s / ≤ 150 MB
+budgets: the figure is a first launch on a shared runner and includes the
+whole Qt framework set; a warm launch on real hardware has not been measured.
