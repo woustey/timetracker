@@ -21,7 +21,7 @@ Download from the [Releases](../../releases) page.
 |---|---|
 | **Windows 10/11** | Run `TimeTracker-<version>-setup.exe` (per-user, no admin rights). Or unzip the portable build anywhere and run `timetracker.exe`. |
 | **macOS 13+** | Open the `.dmg`, drag *Time Tracker* to Applications. The first time, **right-click › Open** (the build is not notarized). |
-| **Linux** | `chmod +x TimeTracker-*.AppImage && ./TimeTracker-*.AppImage`, or unpack the `.tar.gz` and run `timetracker.dist/timetracker`. GNOME needs an AppIndicator extension to show tray icons; KDE, XFCE and LXQt work out of the box. |
+| **Linux** | `chmod +x TimeTracker-*.AppImage && ./TimeTracker-*.AppImage`, or unpack the `.tar.gz` and run `timetracker.dist/timetracker.bin`. GNOME needs an AppIndicator extension to show tray icons; KDE, XFCE and LXQt work out of the box. |
 
 The binaries are **not code-signed**. Windows SmartScreen will say "Windows
 protected your PC" — click *More info* → *Run anyway*. That warning goes away

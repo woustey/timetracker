@@ -2,7 +2,7 @@
 Type=Application
 Name=Time Tracker
 Comment=Tray-resident, local-only time tracker
-Exec=timetracker
+Exec=timetracker.bin
 Icon=timetracker
 Terminal=false
 Categories=Office;Utility;

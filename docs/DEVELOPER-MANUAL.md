@@ -250,7 +250,9 @@ Output: Nuitka log; the first run downloads a C compiler when none is found
 separate DLLs — required by the LGPL, see `THIRD_PARTY_NOTICES.md`). The
 script prints `built C:\…\dist\release\windows\timetracker.dist` at the end.
 On macOS the result is `dist/release/macos/Time Tracker.app`; on Linux
-`dist/release/linux/timetracker.dist/timetracker`.
+`dist/release/linux/timetracker.dist/timetracker.bin` (the `.bin` suffix
+avoids a clash with the `timetracker/` package-data directory that sits
+next to it; Windows has `.exe` for that).
 
 Windows installer, after the release build:
 

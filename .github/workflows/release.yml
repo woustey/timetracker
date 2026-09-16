@@ -66,8 +66,8 @@ jobs:
           TIMETRACKER_ASSUME_TRAY: "1"
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then exe="dist/release/windows/timetracker.dist/timetracker.exe";
-          elif [ "$RUNNER_OS" = "macOS" ]; then exe="dist/release/macos/Time Tracker.app/Contents/MacOS/timetracker";
-          else exe="dist/release/linux/timetracker.dist/timetracker"; fi
+          elif [ "$RUNNER_OS" = "macOS" ]; then exe="dist/release/macos/Time Tracker.app/Contents/MacOS/timetracker.bin";
+          else exe="dist/release/linux/timetracker.dist/timetracker.bin"; fi
           export TIMETRACKER_DATA_DIR="$RUNNER_TEMP/tt-smoke"
           "$exe"
 

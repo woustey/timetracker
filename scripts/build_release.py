@@ -3,8 +3,9 @@
     python scripts/build_release.py            # → dist/release/<platform>/…
 
 Windows: ``dist/release/windows/timetracker.dist/timetracker.exe`` (no console).
-macOS:   ``dist/release/macos/Time Tracker.app`` (LSUIElement — no Dock icon).
-Linux:   ``dist/release/linux/timetracker.dist/timetracker``.
+macOS:   ``dist/release/macos/Time Tracker.app`` (LSUIElement — no Dock icon;
+         the binary inside is ``Contents/MacOS/timetracker.bin``).
+Linux:   ``dist/release/linux/timetracker.dist/timetracker.bin``.
 
 Qt is dynamically linked and replaceable in the output (LGPL §4d, PRD-02 §12.4);
 ``docs/RELEASE-CHECKLIST.md`` has the verification step. Nothing here is
@@ -56,7 +57,10 @@ def main() -> int:
         "--include-package=openpyxl",  # lazy-imported, so Nuitka would not see it
         "--nofollow-import-to=pytest",
         "--output-dir=" + str(out),
-        "--output-filename=timetracker",
+        # The dist also holds the package-data directory `timetracker/`; on
+        # macOS/Linux a binary of the same name would collide with it, so the
+        # executable is `timetracker.bin` there (Nuitka's own convention).
+        "--output-filename=" + ("timetracker" if sys.platform == "win32" else "timetracker.bin"),
         "--company-name=Time Tracker",
         "--product-name=Time Tracker",
         f"--product-version={ver}",
