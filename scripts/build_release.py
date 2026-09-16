@@ -96,7 +96,10 @@ def main() -> int:
     subprocess.run(cmd, check=True, cwd=ROOT)
 
     # Nuitka names the folder after the entry module; give it a stable name.
-    produced = next((p for p in out.iterdir() if p.name.endswith((".dist", ".app"))), None)
+    # On macOS it leaves both `__main__.dist` and the `__main__.app` bundle
+    # built from it: the bundle is the product.
+    candidates = sorted(out.iterdir(), key=lambda p: p.suffix != ".app")
+    produced = next((p for p in candidates if p.name.endswith((".app", ".dist"))), None)
     if produced is None:
         print("no output produced", file=sys.stderr)
         return 1
