@@ -120,6 +120,8 @@ def test_installer_script_and_workflow_are_consistent() -> None:
         assert needle in workflow
     build = (ROOT / "scripts" / "build_release.py").read_text(encoding="utf-8")
     assert "--include-package=openpyxl" in build  # lazy import must be forced in
-    assert "--include-package-data=tzdata" in build
+    assert "--include-package=tzdata" in build  # win32-only data package
+    assert "--python-flag=-m" in build  # package mode: no __main__ warning
+    assert "--include-package=timetracker.data.migrations" in build  # loaded by name
     assert "--windows-console-mode=disable" in build
     assert "--macos-app-mode=background" in build  # LSUIElement
