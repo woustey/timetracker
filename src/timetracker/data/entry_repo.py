@@ -99,32 +99,60 @@ class EntryRepo:
 
     def insert(self, new: NewEntry) -> Entry:
         new.validate()
+        with transaction(self._conn):
+            row_id = self._insert_row(new)
+        return self.get(row_id)
+
+    def insert_many(self, news: list[NewEntry]) -> list[Entry]:
+        """All or nothing, one transaction (FR-805 import). Returns the rows in order."""
+        for new in news:
+            new.validate()
+        ids: list[int] = []
+        with transaction(self._conn):
+            ids = [self._insert_row(new) for new in news]
+        return [self.get(i) for i in ids]
+
+    def _insert_row(self, new: NewEntry) -> int:
         now = to_iso_utc(self._clock.now_utc())
         entry_uuid = new.uuid or str(uuidlib.uuid4())
         local = local_date_for(new.started_at_utc, new.tz_name).isoformat()
-        with transaction(self._conn):
-            cur = self._conn.execute(
-                "INSERT INTO entry (uuid, started_at_utc, ended_at_utc, tz_name, local_date, "
-                "duration_seconds, paused_seconds, client_id, type_id, note, record_method, "
-                "is_edited, created_at, modified_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)",
-                (
-                    entry_uuid,
-                    to_iso_utc(new.started_at_utc),
-                    to_iso_utc(new.ended_at_utc),
-                    new.tz_name,
-                    local,
-                    new.duration_seconds,
-                    new.paused_seconds,
-                    new.client_id,
-                    new.type_id,
-                    new.note,
-                    new.record_method.value,
-                    now,
-                    now,
-                ),
-            )
-        return self.get(int(cur.lastrowid or 0))
+        cur = self._conn.execute(
+            "INSERT INTO entry (uuid, started_at_utc, ended_at_utc, tz_name, local_date, "
+            "duration_seconds, paused_seconds, client_id, type_id, note, record_method, "
+            "is_edited, created_at, modified_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)",
+            (
+                entry_uuid,
+                to_iso_utc(new.started_at_utc),
+                to_iso_utc(new.ended_at_utc),
+                new.tz_name,
+                local,
+                new.duration_seconds,
+                new.paused_seconds,
+                new.client_id,
+                new.type_id,
+                new.note,
+                new.record_method.value,
+                now,
+                now,
+            ),
+        )
+        return int(cur.lastrowid or 0)
+
+    def exists_like(self, new: NewEntry) -> bool:
+        """Same start, duration, labels and note already stored (FR-805 duplicate guard)."""
+        row = self._conn.execute(
+            "SELECT 1 FROM entry WHERE started_at_utc = ? AND duration_seconds = ? "
+            "AND client_id IS ? AND type_id IS ? AND note IS ? LIMIT 1",
+            (
+                to_iso_utc(new.started_at_utc),
+                new.duration_seconds,
+                new.client_id,
+                new.type_id,
+                new.note,
+            ),
+        ).fetchone()
+        return row is not None
 
     # -- read ----------------------------------------------------------------
 

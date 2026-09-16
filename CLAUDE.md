@@ -150,6 +150,12 @@ Tray-resident time tracker. Product requirements: `docs/PRD-time-tracker.md`
   timer that died paused does the same. Idle detection is suspended while
   paused; an outstanding idle prompt survives a pause and is re-raised
   instead of pausing (FR-210).
+- CSV import (FR-805, v1.1): the *only* place a duration may be derived
+  from timestamps is `core/csv_import.py`, and only for the source file's
+  start/end pair when it has no duration column — the result is stored as the
+  measured fact. Imported rows are `MANUAL`. Writes go through
+  `EntryService.add_many` → `EntryRepo.insert_many` (one transaction, all or
+  nothing). Duplicate = same start, duration, client, type and note.
 - Docs to keep current when behaviour changes: `README.md`,
   `docs/DATA-FORMAT.md` (NFR-10), `docs/RELEASE-CHECKLIST.md`,
   `docs/RELEASE-NOTES.md`, `docs/MILESTONES.md` (the build history), and the

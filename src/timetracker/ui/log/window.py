@@ -39,6 +39,7 @@ from timetracker.core.timeutil import local_date_for
 from timetracker.data.entry_repo import EntryFilter, EntryRepo
 from timetracker.services.entry_service import EntryService
 from timetracker.services.export_service import ExportOptions, ExportService
+from timetracker.services.import_service import ImportService
 from timetracker.services.label_service import LabelService
 from timetracker.services.settings_service import (
     KEY_EXPORT_PRESETS,
@@ -50,6 +51,7 @@ from timetracker.services.settings_service import (
 )
 from timetracker.ui.dialogs.add_entry import AddEntryDialog
 from timetracker.ui.dialogs.export_options import ExportOptionsDialog
+from timetracker.ui.dialogs.import_csv import ImportCsvDialog
 from timetracker.ui.log.delegates import DateDelegate, DurationDelegate, LabelDelegate, TimeDelegate
 from timetracker.ui.log.model import Col, EntryTableModel
 from timetracker.ui.log.presets import DatePreset, preset_range
@@ -69,6 +71,8 @@ class LogWindow(QMainWindow):
         settings: SettingsService,
         exporter: ExportService,
         parent: QWidget | None = None,
+        *,
+        importer: ImportService | None = None,
     ) -> None:
         super().__init__(parent)
         self._clock = clock
@@ -77,6 +81,7 @@ class LogWindow(QMainWindow):
         self._labels = labels
         self._settings = settings
         self._exporter = exporter
+        self._importer = importer
         self.setWindowTitle("Time Tracker — Log")
         self.resize(1080, 640)
 
@@ -160,6 +165,10 @@ class LogWindow(QMainWindow):
         self.export_button.setMenu(self.export_menu)
         bar.addWidget(self.export_button)
         self._rebuild_preset_menu()
+        self.import_action = QAction("Import CSV…", self)
+        self.import_action.setEnabled(importer is not None)
+        self.import_action.triggered.connect(self.import_csv)
+        bar.addAction(self.import_action)
         settings.setting_changed.connect(
             lambda key: self._rebuild_preset_menu() if key == KEY_EXPORT_PRESETS else None
         )
@@ -589,6 +598,55 @@ class LogWindow(QMainWindow):
             self._export_with(
                 fmt, options, suggested=self.default_export_name(fmt).replace(".", "-2.")
             )
+
+    # -- import (FR-805) ---------------------------------------------------------
+
+    def import_csv(self, path: Path | None = None) -> ImportCsvDialog | None:
+        """Pick a file (unless given), open the mapping dialog, report the outcome."""
+        if self._importer is None:
+            return None
+        if path is None:
+            chosen, _ = QFileDialog.getOpenFileName(
+                self,
+                "Import CSV",
+                str(self._settings.export_folder),
+                "CSV files (*.csv *.txt *.tsv);;All files (*)",
+            )
+            if not chosen:
+                return None
+            path = Path(chosen)
+        dialog = ImportCsvDialog(
+            self._importer,
+            path,
+            workday_start=self._settings.workday_start,
+            tz_name=self._clock.tz_name(),
+            parent=self,
+        )
+        dialog.finished.connect(lambda _code: self._on_import_finished(dialog))
+        dialog.open()
+        return dialog
+
+    def _on_import_finished(self, dialog: ImportCsvDialog) -> None:
+        outcome = dialog.outcome
+        if outcome is None:
+            return
+        parts = [f"Imported {len(outcome.created)} entries"]
+        if outcome.skipped_duplicates:
+            parts.append(f"{outcome.skipped_duplicates} duplicates skipped")
+        if outcome.skipped_errors:
+            parts.append(f"{outcome.skipped_errors} unreadable rows skipped")
+        new = outcome.new_clients + outcome.new_types
+        if new:
+            parts.append(f"new labels: {', '.join(new)}")
+        message = "; ".join(parts)
+        if outcome.created:
+            # Widen the range to cover the import (the model already refreshed on
+            # entries_changed), then land on the earliest imported row.
+            first = min(outcome.created, key=lambda e: e.started_at_utc)
+            last = max(outcome.created, key=lambda e: e.started_at_utc)
+            self.reveal(last.id, last.local_date)
+            self.reveal(first.id, first.local_date)
+        self.status.showMessage(message, 10000)
 
     # -- events ------------------------------------------------------------------
 

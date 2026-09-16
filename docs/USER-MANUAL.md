@@ -185,6 +185,23 @@ is never overwritten (`-2`, `-3`, … are added). The filters are *not* part of
 a preset: a preset exports whatever the log shows. Remove presets in
 *Settings › Export*.
 
+### Bring in entries from another tool
+
+In the log, click **Import CSV…** and pick the file the other tool exported.
+A dialog shows its columns; tell it which one is the *Date* (required), and
+either a *Duration* column or both *Start* and *End*; *Client*, *Type* and
+*Note* are optional. Column names such as *Date*, *Start*, *Duration*,
+*Client*, *Project*, *Description* are recognised automatically. The preview
+shows exactly what will be written; rows it cannot read are listed in red and
+skipped, rows already in your log are grey and skipped (untick *Skip rows
+that already exist* to import them anyway). Dates may be `2026-09-16`,
+`16/09/2026` or `16.09.2026`; if a file uses month-first dates, choose
+*month/day/year*. Durations may be `1:30`, `1h15`, `90` (minutes) or `1.5`
+(hours). Rows without a start time are placed one after another from the
+workday start (marked `~` in the preview). Unknown clients and types are
+created; imported entries show the method *Manual*. Everything is written in
+one go — if anything fails, nothing is imported.
+
 ### Quit, and what happens to a running timer
 
 Right-click → **Quit** while a timer runs asks: **Stop and save**, **Keep

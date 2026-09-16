@@ -30,6 +30,7 @@ from timetracker.services.backup_service import BackupService
 from timetracker.services.entry_service import EntryService
 from timetracker.services.export_service import ExportService
 from timetracker.services.idle_monitor import IdleMonitor, IdleOutcome, IdleSpan
+from timetracker.services.import_service import ImportService
 from timetracker.services.label_service import LabelService
 from timetracker.services.power_monitor import PowerMonitor
 from timetracker.services.reminder_service import ReminderService
@@ -89,6 +90,7 @@ class App(QApplication):
         self.idle_monitor: IdleMonitor | None = None
         self.power_monitor: PowerMonitor | None = None
         self.reminder_service: ReminderService | None = None
+        self.import_service: ImportService | None = None
         self.export_service: ExportService | None = None
         self.backup_service: BackupService | None = None
         self.log_window: LogWindow | None = None
@@ -149,6 +151,9 @@ class App(QApplication):
             self.clock, entries, clients, types, self.settings_service, self
         )
         self.export_service = ExportService(self.clock, db_file, self)
+        self.import_service = ImportService(
+            self.clock, entries, self.entry_service, self.label_service, self
+        )
         self.backup_service = BackupService(self.clock, db_file, conn, self)
         self._entry_repo = entries
         self.theme.apply(self.settings_service.theme)
@@ -293,6 +298,7 @@ class App(QApplication):
                 self.label_service,
                 self.settings_service,
                 self.export_service,
+                importer=self.import_service,
             )
             self.log_window.closed.connect(self._on_log_closed)
         self.log_window.show()

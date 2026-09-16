@@ -139,6 +139,19 @@ class EntryService(QObject):
         self.entries_changed.emit([entry.uuid])
         return entry
 
+    def add_many(self, news: list[NewEntry]) -> list[Entry]:
+        """Insert a batch in one transaction and announce it once (FR-805 import)."""
+        if not news:
+            return []
+        created = self._entries.insert_many(news)
+        for label_id in {e.client_id for e in created} - {None}:
+            self._clients.touch_last_used(label_id)  # type: ignore[arg-type]
+        for label_id in {e.type_id for e in created} - {None}:
+            self._types.touch_last_used(label_id)  # type: ignore[arg-type]
+        self._last_added = created[-1]
+        self.entries_changed.emit([e.uuid for e in created])
+        return created
+
     def update(self, entry_id: int, **changes: object) -> Entry:
         """Edit an entry per the module's edit policy; marks it ``is_edited`` (FR-505)."""
         current = self._entries.get(entry_id)

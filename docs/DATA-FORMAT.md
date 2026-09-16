@@ -59,7 +59,7 @@ validates, SQLite only checks constraints).
 | `client_id` | integer, nullable | → `client.id` |
 | `type_id` | integer, nullable | → `work_type.id` |
 | `note` | text, nullable | ≤ 500 characters |
-| `record_method` | text | `STOPWATCH` (timer), `QUICKADD` (Add Time matrix), `MANUAL` (log window form) |
+| `record_method` | text | `STOPWATCH` (timer), `QUICKADD` (Add Time matrix), `MANUAL` (log window form, and rows imported from CSV since 1.1) |
 | `is_edited` | 0/1 | set when any field was changed after creation |
 | `created_at`, `modified_at` | text | UTC timestamps |
 

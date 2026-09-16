@@ -249,6 +249,21 @@ Export* lists and deletes them. "Grouping" in the PRD's wording was read as
 the rounding scope (FR-607 aggregated export stays out). Tests: core (4
 functions, 9 cases), settings (1), log window (2).
 
+**FR-805 CSV import:** `core/csv_import.py` (delimiter/header sniffing,
+header-word mapping guesses, per-row parsing to `ParsedRow` or `RowError`,
+ISO/DMY/MDY dates with an auto mode that switches to MDY only when a "day"
+exceeds 12, 24 h and 12 h times, durations via `parse_duration` plus decimal
+hours, rows without a start placed back to back from the workday start),
+`ImportService` (labels resolved through `LabelService.get_or_create`, duplicate
+guard `EntryRepo.exists_like`, commit through `EntryService.add_many` /
+`EntryRepo.insert_many` in one transaction), `ImportCsvDialog` (mapping combos,
+live preview, summary, skip-duplicates), *Import CSV…* on the log toolbar with
+the range widened onto the import. Imported rows are `MANUAL`; a fourth record
+method would have cost a schema rebuild for no user-visible gain. Deriving
+`duration = end − start` is allowed here and only here: it is the source
+tool's data, stored as the fact from then on. Tests: core (5), service (2),
+log window (1).
+
 ---
 
 ## What is deliberately not in v1

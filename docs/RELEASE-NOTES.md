@@ -15,6 +15,11 @@ Everything in 1.0.0, plus the v1.1 backlog from PRD-01 §14:
   dialog now has column tick-boxes and a folder; *Save as preset…* names the
   combination, and the *Export* menu then writes the current view in one
   click (dated file name, never overwrites). Manage them in *Settings › Export*.
+- **CSV import** (FR-805): *Import CSV…* in the log — column mapping with
+  automatic guesses from the header, a preview that shows unreadable rows
+  (skipped) and rows already in the log (skipped unless you say otherwise),
+  day-first / month-first dates, durations as `1:30`, `1h15`, minutes or
+  decimal hours, or derived from start and end. All-or-nothing write.
 
 ---
 

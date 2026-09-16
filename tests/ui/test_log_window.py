@@ -58,7 +58,12 @@ def window(  # type: ignore[no-untyped-def]
     _add(entries, tue + timedelta(days=2), 45, client_id=nike.id, type_id=work.id)
     _add(entries, tue - timedelta(days=7), 90, client_id=asics.id, type_id=work.id, note="old")
     exporter = ExportService(clock, None)
-    w = LogWindow(clock, entries, entry_service, labels, settings_service, exporter)
+    from timetracker.services.import_service import ImportService
+
+    importer = ImportService(clock, entries, entry_service, labels)
+    w = LogWindow(
+        clock, entries, entry_service, labels, settings_service, exporter, importer=importer
+    )
     qtbot.addWidget(w)
     w.show()
     qtbot.waitExposed(w)
@@ -391,3 +396,54 @@ def test_run_preset_exports_the_current_view_in_one_click(
     second = window.run_preset("Weekly")  # never overwrites
     assert second == out / "timetracker_2026-09-07_2026-09-13-2.csv"
     assert window.run_preset("gone") is None
+
+
+# -- FR-805 CSV import ------------------------------------------------------------
+
+
+def test_import_csv_dialog_maps_previews_and_imports(
+    window: LogWindow, entries: EntryRepo, tmp_path: Path, qtbot
+) -> None:  # type: ignore[no-untyped-def]
+    from timetracker.core.csv_import import ColumnMapping
+
+    path = tmp_path / "old.csv"
+    path.write_text(
+        "Datum;Van;Tot;Klant;Notitie\n"
+        "01/08/2026;09:00;10:00;Nike;imported one\n"
+        "01/08/2026;10:00;10:30;Puma;\n"
+        "bad;10:00;10:30;Puma;\n",
+        encoding="utf-8",
+    )
+    before = entries.count()
+    dialog = window.import_csv(path)
+    assert dialog is not None
+    qtbot.addWidget(dialog)
+    # "Datum" and "Klant" are recognised; "Van"/"Tot" are not — map them by hand.
+    assert dialog.mapping().date == 0 and dialog.mapping().client == 3
+    assert not dialog.import_button.isEnabled()  # no duration yet
+    assert "Date column is required" not in dialog.summary.text()
+    dialog.set_mapping(ColumnMapping(date=0, start=1, end=2, client=3, note=4))
+    assert dialog.import_button.isEnabled()
+    assert dialog.summary.text().startswith("2 rows will be imported; 1 cannot be read")
+    assert dialog.preview.rowCount() == 3
+    assert dialog.preview.item(0, 3).text() == "1:00"
+    assert dialog.preview.item(2, 6).text() == "cannot read the date 'bad'"
+    dialog.import_button.click()
+    assert dialog.outcome is not None and len(dialog.outcome.created) == 2
+    assert entries.count() == before + 2
+    assert window.status.currentMessage().startswith(
+        "Imported 2 entries; 1 unreadable rows skipped; new labels: Puma"
+    )
+    # The range widened to August and the first imported row is selected.
+    assert window.date_from.date().toPython() <= date(2026, 8, 1)
+    selected = window.table.selectionModel().selectedRows()
+    assert len(selected) == 1
+    assert window.model.index(selected[0].row(), Col.NOTE).data() == "imported one"
+    # Re-import: both rows are duplicates now.
+    again = window.import_csv(path)
+    assert again is not None
+    qtbot.addWidget(again)
+    again.set_mapping(ColumnMapping(date=0, start=1, end=2, client=3, note=4))
+    assert again.summary.text().startswith("0 rows will be imported; 2 already exist")
+    assert not again.import_button.isEnabled()
+    again.reject()

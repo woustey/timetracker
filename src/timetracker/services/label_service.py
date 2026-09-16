@@ -37,6 +37,10 @@ class LabelService(QObject):
             self.labels_changed.emit(dimension)
         return label
 
+    def find(self, dimension: Dimension, name: str) -> Label | None:
+        """By normalised name, archived included; ``None`` when unknown. Creates nothing."""
+        return self._repos[dimension].find_by_name(name)
+
     def list_all(self, dimension: Dimension) -> list[Label]:
         """Including archived — for the management UI."""
         return self._repos[dimension].list_all(include_archived=True)

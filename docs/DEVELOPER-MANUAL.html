@@ -214,6 +214,7 @@ py -3.13 -m venv .venv
 <tr><td><code>services/idle_monitor.py</code>, <code>power_monitor.py</code></td><td>idle/sleep detection → <code>IdleSpan</code></td></tr>
 <tr><td><code>services/reminder_service.py</code></td><td>FR-702: 60 s check, <code>reminder_due</code> → tray balloon; opt-in</td></tr>
 <tr><td><code>core/export_presets.py</code></td><td>FR-608: <code>ExportPreset</code> / <code>PresetList</code>, JSON in <code>export.presets</code>; run by <code>LogWindow.run_preset()</code></td></tr>
+<tr><td><code>core/csv_import.py</code>, <code>services/import_service.py</code></td><td>FR-805: sniff → <code>guess_mapping</code> → <code>parse_rows</code> (pure); the service resolves labels, flags duplicates (<code>EntryRepo.exists_like</code>) and commits via <code>EntryService.add_many</code> (one transaction)</td></tr>
 <tr><td><code>services/entry_service.py</code>, <code>label_service.py</code>, <code>export_service.py</code>, <code>backup_service.py</code>, <code>settings_service.py</code></td><td>one workflow each</td></tr>
 <tr><td><code>platform/</code></td><td><code>IdleProvider</code>, <code>AutostartProvider</code> per OS; <code>factory.py</code> picks; <code>launch_command()</code></td></tr>
 <tr><td><code>ui/tray.py</code>, <code>ui/popover.py</code>, <code>ui/quickadd/</code>, <code>ui/log/</code>, <code>ui/dialogs/</code>, <code>ui/settings_dialog.py</code>, <code>ui/theme.py</code></td><td>widgets</td></tr>

@@ -346,6 +346,7 @@ nothing changed; only commit it after a deliberate change to the painter in
 | `services/idle_monitor.py`, `power_monitor.py` | idle/sleep detection → `IdleSpan` |
 | `services/reminder_service.py` | FR-702: 60 s check, `reminder_due` → tray balloon; opt-in |
 | `core/export_presets.py` | FR-608: `ExportPreset` / `PresetList`, JSON in `export.presets`; run by `LogWindow.run_preset()` |
+| `core/csv_import.py`, `services/import_service.py` | FR-805: sniff → `guess_mapping` → `parse_rows` (pure); the service resolves labels, flags duplicates (`EntryRepo.exists_like`) and commits via `EntryService.add_many` (one transaction) |
 | `services/entry_service.py`, `label_service.py`, `export_service.py`, `backup_service.py`, `settings_service.py` | one workflow each |
 | `platform/` | `IdleProvider`, `AutostartProvider` per OS; `factory.py` picks; `launch_command()` |
 | `ui/tray.py`, `ui/popover.py`, `ui/quickadd/`, `ui/log/`, `ui/dialogs/`, `ui/settings_dialog.py`, `ui/theme.py` | widgets |
