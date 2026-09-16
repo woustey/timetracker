@@ -115,6 +115,15 @@ locked, the app asks what to do with the away time when you come back:
 You do not have to answer straight away: the timer keeps running, the icon
 shows a small attention mark, and a left-click brings the question back.
 
+### Pause
+
+For a break you know about — lunch, a school run — click **Pause** next to
+**Stop** (or right-click the icon → **Pause**). The clock stops counting, the
+icon turns grey with two bars, and **Resume** continues the *same* entry.
+While paused nothing is counted and the app does not ask about away time. If
+you click **Stop** while paused, the entry ends at the moment you paused.
+The log keeps the total paused time for each entry (hover the *Total* cell).
+
 A timer that runs for 12 hours (changeable) raises a second question:
 **Keep running** or **Stop now**.
 

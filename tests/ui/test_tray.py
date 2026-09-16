@@ -26,7 +26,8 @@ def test_icons_render_for_every_state(qapp, state: TrayState) -> None:  # type: 
 def test_menu_has_start_stop_and_quit(qapp, qtbot) -> None:  # type: ignore[no-untyped-def]
     tray = TrayIcon()
     actions = [a.text() for a in tray.menu.actions() if not a.isSeparator()]
-    assert actions == ["Start", "Add Time…", "Open log…", "Settings…", "Quit"]
+    assert actions == ["Start", "Pause", "Add Time…", "Open log…", "Settings…", "Quit"]
+    assert not tray.pause_action.isVisible()  # FR-212: only while a timer is active
     with qtbot.waitSignal(tray.settings_requested, timeout=1000):
         tray.settings_action.trigger()
     with qtbot.waitSignal(tray.open_log_requested, timeout=1000):
@@ -39,6 +40,13 @@ def test_menu_has_start_stop_and_quit(qapp, qtbot) -> None:  # type: ignore[no-u
         tray.toggle_action.trigger()
     tray.set_running(True)
     assert tray.toggle_action.text() == "Stop"
+    assert tray.pause_action.isVisible() and tray.pause_action.text() == "Pause"
+    tray.set_running(True, paused=True)
+    assert tray.pause_action.text() == "Resume"
+    with qtbot.waitSignal(tray.pause_toggle_requested, timeout=1000):
+        tray.pause_action.trigger()
+    tray.set_running(False)
+    assert not tray.pause_action.isVisible()
 
 
 def test_activation_reasons(qapp, qtbot) -> None:  # type: ignore[no-untyped-def]
@@ -136,4 +144,38 @@ def test_idle_prompt_sets_attention_and_tray_click_raises_it(booted_app, qtbot) 
     assert monitor.outstanding is None
     assert tray.state is TrayState.RUNNING
     assert svc.elapsed_seconds() == 0
+    svc.stop()
+
+
+def test_fr212_tray_pause_and_resume(booted_app) -> None:  # type: ignore[no-untyped-def]
+    app = booted_app
+    tray, svc = app.tray, app.timer_service
+    svc.start()
+    app.toggle_pause()
+    assert svc.is_paused
+    assert tray.state is TrayState.PAUSED
+    assert tray.system_tray_icon.toolTip() == "Paused · 0:00"
+    assert tray.pause_action.text() == "Resume"
+    assert tray.toggle_action.text() == "Stop"
+    app.toggle_pause()
+    assert svc.is_running
+    assert tray.state is TrayState.RUNNING
+    assert tray.pause_action.text() == "Pause"
+    app.toggle_pause()
+    app.toggle_timer()  # Stop from the tray while paused
+    assert tray.state is TrayState.IDLE
+    assert not tray.pause_action.isVisible()
+
+
+def test_fr212_pause_with_an_outstanding_idle_prompt_raises_the_prompt(booted_app, qtbot) -> None:  # type: ignore[no-untyped-def]
+    app = booted_app
+    svc, monitor = app.timer_service, app.idle_monitor
+    svc.start()
+    monitor.on_suspend_resumed(1800, 1800)
+    qtbot.waitUntil(lambda: app._idle_dialog is not None, timeout=1000)  # noqa: SLF001
+    app._idle_dialog.reject()  # noqa: SLF001
+    app.toggle_pause()
+    assert app._idle_dialog is not None  # noqa: SLF001 - the question comes first (FR-210)
+    assert svc.is_running and not svc.is_paused
+    app._idle_dialog.discard.click()  # noqa: SLF001
     svc.stop()

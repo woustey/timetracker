@@ -32,13 +32,14 @@ class RecoveryDialog(QDialog):
         t = offer.timer
         tz = zone(t.tz_name)
         started = t.started_at_utc.astimezone(tz).strftime("%a %d %b %H:%M")
-        until = t.heartbeat_at_utc.astimezone(tz).strftime("%H:%M:%S")
+        until = offer.ended_at_utc.astimezone(tz).strftime("%H:%M:%S")  # pause start if paused
         labels = " · ".join(x for x in (type_name, client_name) if x) or "no labels"
+        paused = " (it was paused)" if t.paused_since_utc is not None else ""
 
         text = QLabel(
             "A timer was running when Time Tracker last closed.\n\n"
             f"Started {started} — {labels}\n"
-            f"Recorded up to {until}: {format_hms(offer.duration_seconds)}\n\n"
+            f"Recorded up to {until}: {format_hms(offer.duration_seconds)}{paused}\n\n"
             "Recover it as an entry, or discard it?"
         )
         text.setWordWrap(True)

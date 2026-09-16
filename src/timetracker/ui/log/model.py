@@ -323,7 +323,10 @@ class EntryTableModel(QAbstractTableModel):
             if col is Col.FLAGS:
                 return "; ".join(self.row_flags(index.row())) or None
             if col is Col.DURATION:
-                return format_hms(e.duration_seconds)
+                text = format_hms(e.duration_seconds)
+                if e.paused_seconds:
+                    text += f" (paused {format_hms(e.paused_seconds)})"
+                return text
             if col is Col.NOTE and e.note:
                 return e.note
         elif role == Qt.ItemDataRole.TextAlignmentRole and col in (

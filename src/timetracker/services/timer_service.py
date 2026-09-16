@@ -5,8 +5,12 @@ Only this class writes the ``running_timer`` row and only this class creates
 wall-clock instants are recorded at start and stop for chronology only, so a DST
 change, an NTP step or a manual clock edit mid-timer never alters the duration.
 
-Pause/resume (FR-212) is *should* and not implemented; the ``paused_since_utc``
-column stays NULL.
+Pause/resume (FR-212): while paused the elapsed value is frozen at
+``base_accrued`` and the 1 s tick is off; resuming re-anchors ``mono_start`` and
+continues the *same* timer. A pause is a chronology gap, not a measured
+duration, so its length is the wall-clock span ``resume − paused_since`` and is
+totalled into ``paused_seconds`` on the entry. Stopping while paused ends the
+entry at the pause start; the trailing pause is not part of the entry.
 """
 
 from __future__ import annotations
@@ -31,6 +35,7 @@ HEARTBEAT_MS = 30_000
 class TimerState(Enum):
     IDLE = "idle"
     RUNNING = "running"
+    PAUSED = "paused"
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,11 +48,23 @@ class RecoveryOffer:
     def duration_seconds(self) -> int:
         return self.timer.heartbeat_accrued_sec
 
+    @property
+    def ended_at_utc(self) -> datetime:
+        """A timer that died paused ends at the pause start, like a stop while paused."""
+        t = self.timer
+        return t.paused_since_utc if t.paused_since_utc is not None else t.heartbeat_at_utc
+
+    @property
+    def paused_seconds(self) -> int:
+        return self.timer.paused_seconds
+
 
 class TimerService(QObject):
     started = Signal(object)  # RunningTimer
     ticked = Signal(int)  # elapsed seconds
     stopped = Signal(object)  # Entry
+    paused = Signal()
+    resumed = Signal()
     labels_changed = Signal()
     state_changed = Signal(object)  # TimerState
     long_running = Signal(int)  # elapsed seconds; once per timer at the threshold (PRD-01 §10)
@@ -94,10 +111,22 @@ class TimerService(QObject):
 
     @property
     def state(self) -> TimerState:
-        return TimerState.RUNNING if self._running is not None else TimerState.IDLE
+        if self._running is None:
+            return TimerState.IDLE
+        return TimerState.PAUSED if self._running.is_paused else TimerState.RUNNING
 
     @property
     def is_running(self) -> bool:
+        """Accruing right now (not idle, not paused)."""
+        return self._running is not None and not self._running.is_paused
+
+    @property
+    def is_paused(self) -> bool:
+        return self._running is not None and self._running.is_paused
+
+    @property
+    def is_active(self) -> bool:
+        """There is a timer to stop: running or paused."""
         return self._running is not None
 
     @property
@@ -107,7 +136,13 @@ class TimerService(QObject):
     def elapsed_seconds(self) -> int:
         if self._running is None:
             return 0
+        if self._running.is_paused:
+            return self._base_accrued
         return max(0, self._base_accrued + int(self._clock.monotonic() - self._mono_start))
+
+    def paused_seconds(self) -> int:
+        """Completed pauses so far; an open pause is not counted until it ends."""
+        return 0 if self._running is None else self._running.paused_seconds
 
     @property
     def long_running_threshold(self) -> int:
@@ -138,13 +173,14 @@ class TimerService(QObject):
         entry = self._entries.insert(
             NewEntry(
                 started_at_utc=t.started_at_utc,
-                ended_at_utc=t.heartbeat_at_utc,
+                ended_at_utc=max(self._recovery.ended_at_utc, t.started_at_utc),
                 tz_name=t.tz_name,
                 duration_seconds=t.heartbeat_accrued_sec,
                 record_method=RecordMethod.STOPWATCH,
                 client_id=t.client_id,
                 type_id=t.type_id,
                 note=t.note,
+                paused_seconds=t.paused_seconds,
             )
         )
         self._timers.clear()
@@ -177,6 +213,7 @@ class TimerService(QObject):
             tz_name=self._clock.tz_name(),
             accrued_seconds=0,
             paused_since_utc=None,
+            paused_seconds=0,
             client_id=client_id,
             type_id=type_id,
             note=note,
@@ -203,13 +240,19 @@ class TimerService(QObject):
 
         ``ended_at_utc`` moves the chronology anchor (e.g. to an idle start);
         ``elapsed_override`` replaces the measured duration. Both exist for the
-        idle outcomes; ordinary stops pass neither.
+        idle outcomes; ordinary stops pass neither. A stop while paused ends
+        at the pause start (FR-212).
         """
         timer = self._running
         if timer is None:
             raise RuntimeError("no timer is running")
         elapsed = self.elapsed_seconds() if elapsed_override is None else max(0, elapsed_override)
-        end = ended_at_utc if ended_at_utc is not None else self._clock.now_utc()
+        if ended_at_utc is not None:
+            end = ended_at_utc
+        elif timer.paused_since_utc is not None:
+            end = timer.paused_since_utc
+        else:
+            end = self._clock.now_utc()
         self._tick.stop()
         self._heartbeat.stop()
         entry = self._entries.insert(
@@ -222,6 +265,7 @@ class TimerService(QObject):
                 client_id=timer.client_id,
                 type_id=timer.type_id,
                 note=timer.note,
+                paused_seconds=timer.paused_seconds,
             )
         )
         self._timers.clear()
@@ -230,6 +274,48 @@ class TimerService(QObject):
         self.stopped.emit(entry)
         self.state_changed.emit(TimerState.IDLE)
         return entry
+
+    def pause(self) -> None:
+        """Freeze the elapsed value (FR-212). No-op unless running."""
+        timer = self._running
+        if timer is None or timer.is_paused:
+            return
+        elapsed = self.elapsed_seconds()
+        now = self._clock.now_utc()
+        self._base_accrued = elapsed
+        self._tick.stop()
+        # A pause is a durable point: the heartbeat copy vouches for it too.
+        self._running = _replace(
+            timer,
+            accrued_seconds=elapsed,
+            paused_since_utc=now,
+            heartbeat_at_utc=now,
+            heartbeat_accrued_sec=elapsed,
+        )
+        self._timers.save(self._running)
+        self.paused.emit()
+        self.state_changed.emit(TimerState.PAUSED)
+
+    def resume(self) -> None:
+        """Continue the same timer; the pause's wall-clock length is booked. No-op unless paused."""
+        timer = self._running
+        if timer is None or timer.paused_since_utc is None:
+            return
+        now = self._clock.now_utc()
+        gap = max(0, int((now - timer.paused_since_utc).total_seconds()))
+        self._mono_start = self._clock.monotonic()
+        self._running = _replace(
+            timer,
+            paused_since_utc=None,
+            paused_seconds=timer.paused_seconds + gap,
+            heartbeat_at_utc=now,
+        )
+        self._timers.save(self._running)
+        self._last_emitted = -1
+        self._tick.start()
+        self.resumed.emit()
+        self.state_changed.emit(TimerState.RUNNING)
+        self.on_tick()
 
     def adjust_accrued(self, delta_seconds: int) -> int:
         """Add (or remove) seconds on the running timer; floors at zero. Returns new elapsed.
@@ -305,7 +391,7 @@ class TimerService(QObject):
     # -- timers (public so tests can drive them without an event loop) -------
 
     def on_tick(self) -> None:
-        if self._running is None:
+        if self._running is None or self._running.is_paused:
             return
         elapsed = self.elapsed_seconds()
         if elapsed != self._last_emitted:

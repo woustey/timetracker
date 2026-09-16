@@ -288,3 +288,42 @@ def test_sleep_while_prompt_outstanding_extends_it(
     assert span.seconds == 32 * 60
     assert span.counted_seconds == first.counted_seconds + 1200
     assert not span.still_idle
+
+
+# -- FR-212: a paused timer is not idle -------------------------------------------
+
+
+def test_paused_timer_is_not_polled_and_keeps_an_outstanding_prompt(
+    monitor: IdleMonitor, provider: FakeIdleProvider, service: TimerService, clock: FakeClock, qtbot
+) -> None:  # type: ignore[no-untyped-def]
+    service.start()
+    clock.advance(60)
+    service.pause()
+    provider.idle = 10_000  # away for hours while paused: nothing accrues, nothing to ask
+    monitor.poll()
+    assert monitor.outstanding is None
+    monitor.on_suspend_resumed(3600, 3600)
+    assert monitor.outstanding is None
+    service.resume()
+    provider.idle = 0
+    span = _idle_then(monitor, provider, service, clock)  # (re)starts the timer; prompt is up
+    with qtbot.assertNotEmitted(monitor.resolved):
+        service.pause()  # a pause does not supersede the question
+    assert monitor.outstanding is span
+    service.resume()
+    with qtbot.waitSignal(monitor.resolved, timeout=1000):
+        monitor.resolve(IdleOutcome.DISCARD)
+    assert service.elapsed_seconds() == 20 * 60
+
+
+def test_prompt_answered_while_paused_still_applies(
+    monitor: IdleMonitor, provider: FakeIdleProvider, service: TimerService, clock: FakeClock
+) -> None:
+    _idle_then(monitor, provider, service, clock)
+    service.pause()
+    monitor.resolve(IdleOutcome.DISCARD)
+    assert service.is_paused
+    assert service.elapsed_seconds() == 20 * 60
+    service.resume()
+    clock.advance(10)
+    assert service.elapsed_seconds() == 20 * 60 + 10

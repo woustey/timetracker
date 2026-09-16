@@ -14,8 +14,8 @@ from timetracker.core.timeutil import from_iso_utc, to_iso_utc
 from timetracker.data.db import transaction
 
 _COLUMNS = (
-    "started_at_utc, tz_name, accrued_seconds, paused_since_utc, client_id, type_id, note, "
-    "heartbeat_at_utc, heartbeat_accrued_sec"
+    "started_at_utc, tz_name, accrued_seconds, paused_since_utc, paused_seconds, client_id, "
+    "type_id, note, heartbeat_at_utc, heartbeat_accrued_sec"
 )
 
 
@@ -32,12 +32,13 @@ class TimerRepo:
         with transaction(self._conn):
             self._conn.execute(
                 f"INSERT OR REPLACE INTO running_timer (id, {_COLUMNS}) "
-                "VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     to_iso_utc(timer.started_at_utc),
                     timer.tz_name,
                     timer.accrued_seconds,
                     None if timer.paused_since_utc is None else to_iso_utc(timer.paused_since_utc),
+                    timer.paused_seconds,
                     timer.client_id,
                     timer.type_id,
                     timer.note,
@@ -69,6 +70,7 @@ def _to_timer(row: sqlite3.Row) -> RunningTimer:
         paused_since_utc=(
             None if row["paused_since_utc"] is None else from_iso_utc(row["paused_since_utc"])
         ),
+        paused_seconds=int(row["paused_seconds"]),
         client_id=row["client_id"],
         type_id=row["type_id"],
         note=row["note"],

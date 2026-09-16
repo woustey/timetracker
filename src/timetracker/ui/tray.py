@@ -24,6 +24,7 @@ class TrayIcon(QObject):
 
     popover_requested = Signal()
     toggle_requested = Signal()
+    pause_toggle_requested = Signal()  # Pause ⇄ Resume (FR-212)
     add_time_requested = Signal()
     open_log_requested = Signal()
     settings_requested = Signal()
@@ -39,6 +40,10 @@ class TrayIcon(QObject):
         self._toggle_action = QAction("Start", self._menu)
         self._toggle_action.triggered.connect(self.toggle_requested.emit)
         self._menu.addAction(self._toggle_action)
+        self._pause_action = QAction("Pause", self._menu)
+        self._pause_action.setVisible(False)  # only while a timer is active
+        self._pause_action.triggered.connect(self.pause_toggle_requested.emit)
+        self._menu.addAction(self._pause_action)
         self._add_time_action = QAction("Add Time…", self._menu)
         self._add_time_action.triggered.connect(self.add_time_requested.emit)
         self._menu.addAction(self._add_time_action)
@@ -72,9 +77,11 @@ class TrayIcon(QObject):
     def set_tooltip(self, tooltip: str) -> None:
         self._tray.setToolTip(tooltip)
 
-    def set_running(self, running: bool) -> None:
-        """Flip the Start/Stop menu item (FR-103)."""
+    def set_running(self, running: bool, *, paused: bool = False) -> None:
+        """Flip the Start/Stop menu item (FR-103) and show Pause/Resume while active (FR-212)."""
         self._toggle_action.setText("Stop" if running else "Start")
+        self._pause_action.setVisible(running)
+        self._pause_action.setText("Resume" if paused else "Pause")
 
     def geometry(self) -> QRect:
         return self._tray.geometry()
@@ -108,6 +115,10 @@ class TrayIcon(QObject):
     @property
     def toggle_action(self) -> QAction:
         return self._toggle_action
+
+    @property
+    def pause_action(self) -> QAction:
+        return self._pause_action
 
     @property
     def add_time_action(self) -> QAction:

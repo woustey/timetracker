@@ -2,7 +2,8 @@
 
 Three states per PRD-01 §9.1: idle (outline clock on a white face, so it reads on
 a grey taskbar), running (filled clock in the accent colour) and attention (idle
-clock with a badge). Rendered at 16, 22 and
+clock with a badge) — plus paused (FR-212: the filled clock in a muted grey with
+pause bars instead of hands). Rendered at 16, 22 and
 32 px so Windows, X11 and HiDPI each get a crisp source. Replace with real
 artwork under ``resources/`` when it exists; ``tray.py`` only calls
 :func:`make_icon`.
@@ -17,6 +18,7 @@ from PySide6.QtGui import QBrush, QColor, QIcon, QPainter, QPen, QPixmap
 
 _SIZES = (16, 22, 32)
 _ACCENT = QColor("#2f80ed")
+_PAUSED = QColor("#8a97a8")
 _BADGE = QColor("#e5484d")
 _FACE = QColor("#ffffff")
 
@@ -24,6 +26,7 @@ _FACE = QColor("#ffffff")
 class TrayState(Enum):
     IDLE = "idle"
     RUNNING = "running"
+    PAUSED = "paused"
     ATTENTION = "attention"
 
 
@@ -52,9 +55,9 @@ def _render(state: TrayState, size: int, fg: QColor) -> QPixmap:
     centre = face.center()
     radius = face.width() / 2
 
-    if state is TrayState.RUNNING:
+    if state in (TrayState.RUNNING, TrayState.PAUSED):
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QBrush(_ACCENT))
+        p.setBrush(QBrush(_ACCENT if state is TrayState.RUNNING else _PAUSED))
         p.drawEllipse(face)
         hand_colour = QColor("#ffffff")
     else:
@@ -63,10 +66,19 @@ def _render(state: TrayState, size: int, fg: QColor) -> QPixmap:
         p.drawEllipse(face)
         hand_colour = fg
 
-    # Hands: 12 o'clock and 3 o'clock.
     p.setPen(QPen(hand_colour, stroke, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
-    p.drawLine(centre, QPointF(centre.x(), centre.y() - radius * 0.55))
-    p.drawLine(centre, QPointF(centre.x() + radius * 0.4, centre.y()))
+    if state is TrayState.PAUSED:
+        # Two pause bars where the hands would be.
+        half = radius * 0.4
+        for dx in (-radius * 0.22, radius * 0.22):
+            p.drawLine(
+                QPointF(centre.x() + dx, centre.y() - half),
+                QPointF(centre.x() + dx, centre.y() + half),
+            )
+    else:
+        # Hands: 12 o'clock and 3 o'clock.
+        p.drawLine(centre, QPointF(centre.x(), centre.y() - radius * 0.55))
+        p.drawLine(centre, QPointF(centre.x() + radius * 0.4, centre.y()))
 
     if state is TrayState.ATTENTION:
         badge_r = size * 0.22

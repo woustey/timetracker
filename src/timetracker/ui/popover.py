@@ -5,8 +5,9 @@ A frameless ``Qt.Popup`` anchored to the tray icon and clamped to the screen.
 one layout; widgets are shown or hidden per state rather than swapped.
 
 Two pages: the **stopwatch** page (elapsed display, client/type selectors,
-Start/Stop, note while running, started-at, today's total, an *Add Time*
-button) and the **matrix** page (§9.3). The mode is remembered across open/close
+Start/Stop with a secondary Pause/Resume while active (FR-212), note while
+running, started-at, today's total, an *Add Time* button) and the **matrix**
+page (§9.3). The mode is remembered across open/close
 *and* across launches (a setting), so an accidental Esc does not lose a
 half-composed entry and a matrix-first user lands on the matrix with one click. The three "continue"
 rows (FR-213, *could*) and the footer links (M5/M6) are absent.
@@ -100,6 +101,13 @@ class Popover(QWidget):
         self.start_stop = QPushButton("Start")
         self.start_stop.setDefault(True)
         self.start_stop.setMinimumHeight(36)
+        self.pause_resume = QPushButton("Pause")
+        self.pause_resume.setAccessibleName("Pause timer")
+        self.pause_resume.setMinimumHeight(36)
+        self.pause_resume.clicked.connect(self._on_pause_resume)
+        buttons = QHBoxLayout()
+        buttons.addWidget(self.start_stop, 2)
+        buttons.addWidget(self.pause_resume, 1)
 
         self.add_time = QPushButton("Add Time…")
         self.add_time.setAccessibleName("Add time")
@@ -139,7 +147,7 @@ class Popover(QWidget):
         root.setContentsMargins(16, 12, 16, 12)
         root.addWidget(self.elapsed)
         root.addLayout(form)
-        root.addWidget(self.start_stop)
+        root.addLayout(buttons)
         root.addWidget(self.add_time)
         root.addLayout(footer)
         self.pages.addWidget(self.stopwatch_page)
@@ -233,7 +241,7 @@ class Popover(QWidget):
 
     def refresh(self) -> None:
         """Re-read labels, defaults and totals; called before every show."""
-        if self._timer.is_running:
+        if self._timer.is_active:
             running = self._timer.running
             assert running is not None
             self.client.reload(running.client_id)
@@ -253,14 +261,24 @@ class Popover(QWidget):
     # -- state ---------------------------------------------------------------
 
     def _apply_state(self, state: TimerState) -> None:
-        running = state is TimerState.RUNNING
-        self.start_stop.setText("Stop" if running else "Start")
-        self.start_stop.setAccessibleName("Stop timer" if running else "Start timer")
-        self.note.setVisible(running)
-        self.started_at.setVisible(running)
-        self.elapsed.setEnabled(running)
-        if running:
-            self.started_at.setText(f"Started {self._timer.started_local_time()}")
+        active = state is not TimerState.IDLE
+        paused = state is TimerState.PAUSED
+        self.start_stop.setText("Stop" if active else "Start")
+        self.start_stop.setAccessibleName("Stop timer" if active else "Start timer")
+        self.pause_resume.setVisible(active)
+        self.pause_resume.setText("Resume" if paused else "Pause")
+        self.pause_resume.setAccessibleName("Resume timer" if paused else "Pause timer")
+        self.note.setVisible(active)
+        self.started_at.setVisible(active)
+        self.elapsed.setEnabled(active and not paused)
+        if active:
+            text = f"Started {self._timer.started_local_time()}"
+            if paused:
+                text += " · paused"
+            elif self._timer.paused_seconds():
+                text += f" · paused {format_hm(self._timer.paused_seconds())}"
+            self.started_at.setText(text)
+            self._on_tick(self._timer.elapsed_seconds())
         else:
             self.elapsed.setText("0:00:00")
         self._refresh_today()
@@ -275,7 +293,7 @@ class Popover(QWidget):
     # -- actions -------------------------------------------------------------
 
     def _on_start_stop(self) -> None:
-        if self._timer.is_running:
+        if self._timer.is_active:
             self._timer.stop()
             self.hide()
         else:
@@ -284,13 +302,20 @@ class Popover(QWidget):
             self._timer.start(client_id, type_id, None)
             self.refresh()
 
+    def _on_pause_resume(self) -> None:
+        if self._timer.is_paused:
+            self._timer.resume()
+        elif self._timer.is_running:
+            self._timer.pause()
+        self.start_stop.setFocus()
+
     def _on_label_edited(self, *_: object) -> None:
-        if not self._timer.is_running:
+        if not self._timer.is_active:
             return
         self._timer.set_labels(self.client.commit(), self.type.commit())
 
     def _on_note_edited(self) -> None:
-        if self._timer.is_running:
+        if self._timer.is_active:
             self._timer.set_note(self.note.text().strip() or None)
 
     def _on_open_log(self) -> None:

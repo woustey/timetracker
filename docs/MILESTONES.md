@@ -217,6 +217,22 @@ session handoff document lives in `docs/HANDOFF.md`.
 
 ---
 
+## v1.1 — the PRD-01 §14 backlog (16 Sep)
+
+Started after 1.0.0 shipped; the owner asked for all six §14 items in one
+run, order chosen by the assistant: FR-212 → FR-702 → FR-608 → FR-805 →
+FR-509 → FR-510.
+
+**FR-212 pause/resume:** `TimerState.PAUSED`, `pause()` / `resume()` on
+`TimerService`, schema v4 (`running_timer.paused_seconds`, rebuilt so the
+drift guard holds), a fourth tray icon state, *Pause*/*Resume* in the popover
+and the tray menu, recovery of a timer that died paused. The pause length is
+the wall-clock gap (a chronology fact), never the monotonic delta — sleeping
+through a pause on Linux would otherwise lose it. Tests: service (6), idle
+monitor (2), migration (1), tray (2), popover (1).
+
+---
+
 ## What is deliberately not in v1
 
 Everything PRD-01 marks *S* or *C*: pause/resume, continue-from-entry, stop

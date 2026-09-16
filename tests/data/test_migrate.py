@@ -190,7 +190,7 @@ def test_v1_to_v2_keeps_data_and_adds_the_totals_index(tmp_path: Path, clock: Fa
 
     conn = connect(db)
     result = migrate(conn, db, clock=clock)
-    assert result.applied == [2, 3]
+    assert result.applied == [2, 3, 4]
     assert result.backup_path == tmp_path / "v1-pre-v1.sqlite3"
     assert user_version(conn) == TARGET_VERSION
     assert conn.execute("SELECT duration_seconds FROM entry WHERE uuid='u1'").fetchone()[0] == 1800
@@ -234,8 +234,8 @@ def test_v2_to_v3_rebuilds_entry_and_keeps_data(tmp_path: Path, clock: FakeClock
 
     conn = connect(db)
     result = migrate(conn, db, clock=clock)
-    assert result.applied == [3]
-    assert user_version(conn) == 3
+    assert result.applied == [3, 4]
+    assert user_version(conn) == 4
     row = conn.execute("SELECT * FROM entry WHERE uuid='u1'").fetchone()
     assert (
         row["id"],
@@ -267,6 +267,52 @@ def test_v2_to_v3_rebuilds_entry_and_keeps_data(tmp_path: Path, clock: FakeClock
     } <= indexes
     assert conn.execute("SELECT name FROM sqlite_master WHERE name='entry_v2'").fetchone() is None
     # And it equals a fresh build (the drift guard, applied to an upgraded file).
+    fresh = connect(":memory:")
+    execute_script(fresh, CURRENT_DDL)
+    assert _schema(conn) == _schema(fresh)
+    conn.close()
+
+
+def test_v3_to_v4_rebuilds_running_timer_and_keeps_the_leftover_row(
+    tmp_path: Path, clock: FakeClock
+) -> None:
+    """v4 adds ``running_timer.paused_seconds`` (FR-212); a crash-recovery row survives."""
+    from timetracker.data.schema import DDL_V3
+
+    db = tmp_path / "v3.sqlite3"
+    conn = connect(db)
+    execute_script(conn, DDL_V3)
+    conn.execute(
+        "INSERT INTO running_timer (id, started_at_utc, tz_name, accrued_seconds, "
+        "paused_since_utc, note, heartbeat_at_utc, heartbeat_accrued_sec) "
+        "VALUES (1, '2026-09-16T07:00:00Z', 'UTC', 500, '2026-09-16T07:09:00Z', 'n', "
+        "'2026-09-16T07:09:00Z', 500)"
+    )
+    for v in (1, 2, 3):
+        conn.execute("INSERT INTO schema_migration (version, applied_at) VALUES (?, 'x')", (v,))
+    set_user_version(conn, 3)
+    conn.close()
+
+    conn = connect(db)
+    result = migrate(conn, db, clock=clock)
+    assert result.applied == [4]
+    assert user_version(conn) == 4
+    row = conn.execute("SELECT * FROM running_timer").fetchone()
+    assert (
+        row["accrued_seconds"],
+        row["paused_since_utc"],
+        row["note"],
+        row["paused_seconds"],
+    ) == (
+        500,
+        "2026-09-16T07:09:00Z",
+        "n",
+        0,
+    )
+    assert (
+        conn.execute("SELECT name FROM sqlite_master WHERE name='running_timer_v3'").fetchone()
+        is None
+    )
     fresh = connect(":memory:")
     execute_script(fresh, CURRENT_DDL)
     assert _schema(conn) == _schema(fresh)

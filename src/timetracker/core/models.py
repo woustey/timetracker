@@ -119,12 +119,15 @@ class RunningTimer:
 
     ``accrued_seconds`` is advanced from the monotonic clock in-process; the
     heartbeat pair is the last durable copy, used by crash recovery (FR-207).
+    ``paused_seconds`` totals the *completed* pauses (FR-212); ``paused_since_utc``
+    marks an open one.
     """
 
     started_at_utc: datetime
     tz_name: str
     accrued_seconds: int
     paused_since_utc: datetime | None
+    paused_seconds: int
     client_id: int | None
     type_id: int | None
     note: str | None

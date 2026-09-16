@@ -203,6 +203,7 @@ def _crashed_row(clock: FakeClock, **kw: object) -> RunningTimer:
         tz_name="Europe/Brussels",
         accrued_seconds=1170,
         paused_since_utc=None,
+        paused_seconds=0,
         client_id=None,
         type_id=None,
         note="before the crash",
@@ -328,3 +329,134 @@ def test_long_running_prompt_emitted_once_per_timer(
     clock.advance(10 * 3600)
     service.on_tick()
     assert len(seen) == 2
+
+
+# -- FR-212 pause / resume ---------------------------------------------------
+
+
+def test_fr212_pause_freezes_and_resume_continues_same_entry(
+    service: TimerService, timers: TimerRepo, clock: FakeClock, qtbot
+) -> None:  # type: ignore[no-untyped-def]
+    start = clock.now_utc()
+    service.start(note="one entry")
+    clock.advance(600)
+    with qtbot.waitSignals([service.paused, service.state_changed], timeout=1000):
+        service.pause()
+    assert service.state is TimerState.PAUSED
+    assert service.is_paused and service.is_active and not service.is_running
+    row = timers.get()
+    assert row is not None
+    assert row.paused_since_utc == clock.now_utc()
+    assert row.accrued_seconds == row.heartbeat_accrued_sec == 600
+    clock.advance(300)  # five paused minutes
+    assert service.elapsed_seconds() == 600
+    service.on_tick()  # the tick is off; a stray call changes nothing
+    with qtbot.waitSignals([service.resumed, service.state_changed], timeout=1000):
+        service.resume()
+    assert service.state is TimerState.RUNNING
+    assert service.paused_seconds() == 300
+    row = timers.get()
+    assert row is not None and row.paused_since_utc is None and row.paused_seconds == 300
+    clock.advance(120)
+    assert service.elapsed_seconds() == 720
+    entry = service.stop()
+    assert entry.duration_seconds == 720
+    assert entry.paused_seconds == 300
+    assert entry.note == "one entry"
+    assert entry.started_at_utc == start
+    assert entry.ended_at_utc == start + timedelta(seconds=1020)
+
+
+def test_fr212_pauses_accumulate_and_a_stop_while_paused_ends_at_the_pause(
+    service: TimerService, clock: FakeClock
+) -> None:
+    start = clock.now_utc()
+    service.start()
+    clock.advance(100)
+    service.pause()
+    clock.advance(50)
+    service.resume()
+    clock.advance(100)
+    service.pause()
+    paused_at = clock.now_utc()
+    clock.advance(1000)  # walks away and stops from the tray later
+    entry = service.stop()
+    assert entry.duration_seconds == 200
+    assert entry.paused_seconds == 50  # the trailing pause is not inside the entry
+    assert entry.ended_at_utc == paused_at
+    assert entry.started_at_utc == start
+
+
+def test_fr212_pause_and_resume_are_idempotent_and_ignore_idle(
+    service: TimerService, qtbot
+) -> None:  # type: ignore[no-untyped-def]
+    service.pause()  # idle: nothing happens
+    service.resume()
+    assert service.state is TimerState.IDLE
+    service.start()
+    service.resume()  # running: not paused, nothing happens
+    assert service.state is TimerState.RUNNING
+    service.pause()
+    with qtbot.assertNotEmitted(service.paused):
+        service.pause()
+    assert service.state is TimerState.PAUSED
+
+
+def test_fr212_wall_clock_edit_during_a_pause_cannot_make_paused_time_negative(
+    service: TimerService, clock: FakeClock
+) -> None:
+    service.start()
+    clock.advance(60)
+    service.pause()
+    clock.step_wall(-3600)  # clock set back an hour while paused
+    clock.advance(30)
+    service.resume()
+    assert service.paused_seconds() == 0  # floored, never negative
+    clock.advance(10)
+    assert service.elapsed_seconds() == 70  # duration untouched (FR-208)
+
+
+def test_fr212_recovery_of_a_timer_that_died_paused(
+    qapp,
+    clock: FakeClock,
+    timers: TimerRepo,
+    entries: EntryRepo,
+    clients: LabelRepo,
+    types: LabelRepo,
+) -> None:  # type: ignore[no-untyped-def]
+    started = clock.now_utc() - timedelta(minutes=30)
+    paused_at = started + timedelta(minutes=20)
+    timers.save(
+        _crashed_row(
+            clock,
+            accrued_seconds=1000,
+            heartbeat_accrued_sec=1000,
+            paused_seconds=200,
+            paused_since_utc=paused_at,
+            heartbeat_at_utc=paused_at + timedelta(minutes=5),  # heartbeats kept going
+        )
+    )
+    svc = TimerService(clock, timers, entries, clients, types)
+    offer = svc.pending_recovery
+    assert offer is not None
+    assert offer.ended_at_utc == paused_at
+    assert offer.paused_seconds == 200
+    entry = svc.recover()
+    assert entry.duration_seconds == 1000
+    assert entry.paused_seconds == 200
+    assert entry.ended_at_utc == paused_at
+
+
+def test_fr212_heartbeat_keeps_running_while_paused(
+    service: TimerService, timers: TimerRepo, clock: FakeClock
+) -> None:
+    service.start()
+    clock.advance(40)
+    service.pause()
+    clock.advance(35)
+    service.on_heartbeat()
+    row = timers.get()
+    assert row is not None
+    assert row.heartbeat_accrued_sec == 40
+    assert row.heartbeat_at_utc == clock.now_utc()
+    assert row.paused_since_utc is not None

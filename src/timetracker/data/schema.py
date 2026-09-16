@@ -11,7 +11,7 @@ cannot alter a CHECK constraint) can reuse the exact text, which keeps the
 
 from __future__ import annotations
 
-TARGET_VERSION = 3
+TARGET_VERSION = 4
 
 LABEL_TABLES = """
 CREATE TABLE client (
@@ -71,20 +71,28 @@ ENTRY_INDEXES_V2 = """
 CREATE INDEX idx_entry_totals ON entry(client_id, type_id, duration_seconds);
 """
 
-OTHER_TABLES = """
+_RUNNING_TIMER_TEMPLATE = """
 CREATE TABLE running_timer (
     id                    INTEGER PRIMARY KEY CHECK (id = 1),
     started_at_utc        TEXT    NOT NULL,
     tz_name               TEXT    NOT NULL,
     accrued_seconds       INTEGER NOT NULL DEFAULT 0,
     paused_since_utc      TEXT,
-    client_id             INTEGER REFERENCES client(id),
+{paused}    client_id             INTEGER REFERENCES client(id),
     type_id               INTEGER REFERENCES work_type(id),
     note                  TEXT,
     heartbeat_at_utc      TEXT    NOT NULL,
     heartbeat_accrued_sec INTEGER NOT NULL
 );
+"""
 
+RUNNING_TIMER_V1 = _RUNNING_TIMER_TEMPLATE.format(paused="")
+# v4: the total of the completed pauses so far (FR-212); paused_since_utc marks an open one.
+RUNNING_TIMER_V4 = _RUNNING_TIMER_TEMPLATE.format(
+    paused="    paused_seconds        INTEGER NOT NULL DEFAULT 0,\n"
+)
+
+_OTHER_TABLES_TEMPLATE = """
 CREATE TABLE setting (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -95,6 +103,9 @@ CREATE TABLE schema_migration (
     applied_at TEXT NOT NULL
 );
 """
+
+OTHER_TABLES_V1 = RUNNING_TIMER_V1 + _OTHER_TABLES_TEMPLATE
+OTHER_TABLES_V4 = RUNNING_TIMER_V4 + _OTHER_TABLES_TEMPLATE
 
 _VIEW_TEMPLATE = """
 CREATE VIEW v_session_log AS
@@ -119,10 +130,13 @@ VIEW_V1 = _VIEW_TEMPLATE.format(extra="")
 VIEW_V3 = _VIEW_TEMPLATE.format(extra="            WHEN 'MANUAL' THEN 'Manual'\n")
 
 # What each migration builds on top of the previous version.
-DDL_V1 = LABEL_TABLES + ENTRY_TABLE_V1 + ENTRY_INDEXES_V1 + OTHER_TABLES + VIEW_V1
+DDL_V1 = LABEL_TABLES + ENTRY_TABLE_V1 + ENTRY_INDEXES_V1 + OTHER_TABLES_V1 + VIEW_V1
 DDL_V2_ADDITIONS = ENTRY_INDEXES_V2
+DDL_V3 = (
+    LABEL_TABLES + ENTRY_TABLE_V3 + ENTRY_INDEXES_V1 + ENTRY_INDEXES_V2 + OTHER_TABLES_V1 + VIEW_V3
+)
 
 # The current schema, as a fresh build would produce it.
 CURRENT_DDL = (
-    LABEL_TABLES + ENTRY_TABLE_V3 + ENTRY_INDEXES_V1 + ENTRY_INDEXES_V2 + OTHER_TABLES + VIEW_V3
+    LABEL_TABLES + ENTRY_TABLE_V3 + ENTRY_INDEXES_V1 + ENTRY_INDEXES_V2 + OTHER_TABLES_V4 + VIEW_V3
 )

@@ -205,7 +205,7 @@ class IdleMonitor(QObject):
             return
         svc = self._timer_service
         self._span = None
-        if not svc.is_running:
+        if not svc.is_active:
             self.resolved.emit()
             return
         if outcome is IdleOutcome.KEEP:
@@ -229,6 +229,10 @@ class IdleMonitor(QObject):
             self._poll.start()
             return
         self._poll.stop()
+        if self._timer_service.is_paused:
+            # Nothing accrues while paused, so nothing new to ask about; an
+            # outstanding question stays outstanding (FR-210).
+            return
         if self._span is not None:
             # Stopped or discarded by other means: the question is moot (superseded).
             self._span = None

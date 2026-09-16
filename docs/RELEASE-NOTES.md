@@ -1,3 +1,16 @@
+# Time Tracker 1.1.0 (unreleased)
+
+Everything in 1.0.0, plus the v1.1 backlog from PRD-01 §14:
+
+- **Pause / resume** (FR-212): *Pause* next to *Stop* in the popover and in
+  the tray menu; a grey icon with two bars while paused. Resuming continues
+  the same entry; the entry records its total paused time (`paused_seconds`,
+  shown when hovering the log's *Total* cell). Stopping while paused ends the
+  entry at the moment it was paused. Schema v4 (automatic, a pre-migration
+  copy is kept as always).
+
+---
+
 # Time Tracker 1.0.0
 
 A tray-resident, local-only time tracker for people who bill or allocate their

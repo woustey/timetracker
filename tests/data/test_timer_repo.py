@@ -18,6 +18,7 @@ def _timer(start: datetime, **kw: object) -> RunningTimer:
         tz_name="Europe/Brussels",
         accrued_seconds=0,
         paused_since_utc=None,
+        paused_seconds=0,
         client_id=None,
         type_id=None,
         note=None,

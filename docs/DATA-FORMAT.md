@@ -1,7 +1,7 @@
 # Time Tracker — data format
 
 *NFR-10: the schema and file format are documented so the data is usable
-without the application.* This page describes schema **v3** (the current one).
+without the application.* This page describes schema **v4** (the current one).
 
 ## Where the data lives
 
@@ -55,7 +55,7 @@ validates, SQLite only checks constraints).
 | `tz_name` | text | IANA zone the entry was recorded in, e.g. `Europe/Brussels` |
 | `local_date` | text | `YYYY-MM-DD` in `tz_name` — the calendar day the entry belongs to |
 | `duration_seconds` | integer ≥ 0 | **the measured duration — authoritative** |
-| `paused_seconds` | integer | reserved for pause/resume (always 0 in v1) |
+| `paused_seconds` | integer ≥ 0 | total of the pauses inside a `STOPWATCH` entry (FR-212, since 1.1); wall-clock gap, not billed. `ended − started ≈ duration + paused` |
 | `client_id` | integer, nullable | → `client.id` |
 | `type_id` | integer, nullable | → `work_type.id` |
 | `note` | text, nullable | ≤ 500 characters |
@@ -90,7 +90,9 @@ A label with entries cannot be deleted (`ON DELETE RESTRICT`) — archive it.
 
 Persisted every 30 s (`heartbeat_at_utc`, `heartbeat_accrued_sec`). If the app
 is killed, the next launch offers to recover an entry up to the last heartbeat.
-Never edit this table.
+`paused_since_utc` is set while the timer is paused; `paused_seconds` (v4) totals
+the pauses already completed. A timer recovered while paused ends at the
+pause start. Never edit this table.
 
 ### `setting` — key/value, JSON-encoded values
 
@@ -100,7 +102,7 @@ Everything in Settings, plus a few remembered UI states (`popover.last_mode`,
 ### `schema_migration`
 
 One row per applied migration. `PRAGMA user_version` holds the current version
-(3). The app refuses to open a database written by a newer version rather than
+(4). The app refuses to open a database written by a newer version rather than
 risk corrupting it.
 
 ## Indexes

@@ -164,6 +164,7 @@ class App(QApplication):
         self.tray.settings_requested.connect(self.show_settings)
         self.popover.settings_requested.connect(self.show_settings)
         self.tray.toggle_requested.connect(self.toggle_timer)
+        self.tray.pause_toggle_requested.connect(self.toggle_pause)
         self.tray.quit_requested.connect(self.request_quit)
         self.timer_service.state_changed.connect(self._on_state_changed)
         self.timer_service.ticked.connect(self._on_tick)
@@ -366,11 +367,24 @@ class App(QApplication):
         svc = self.timer_service
         if svc is None or svc.pending_recovery is not None:
             return
-        if svc.is_running:
+        if svc.is_active:
             svc.stop()
         else:
             client_id, type_id = svc.default_labels()
             svc.start(client_id, type_id)
+
+    def toggle_pause(self) -> None:
+        """Tray *Pause* / *Resume* (FR-212). An outstanding idle question comes first (FR-210)."""
+        svc = self.timer_service
+        if svc is None or not svc.is_active:
+            return
+        if self.idle_monitor is not None and self.idle_monitor.outstanding is not None:
+            self.offer_idle_prompt(self.idle_monitor.outstanding)
+            return
+        if svc.is_paused:
+            svc.resume()
+        else:
+            svc.pause()
 
     def offer_recovery(self) -> None:
         svc = self.timer_service
@@ -438,7 +452,7 @@ class App(QApplication):
         if self.timer_service.pending_recovery is not None:
             return
         span = self.idle_monitor.outstanding if self.idle_monitor is not None else None
-        if span is not None and self.timer_service.is_running:
+        if span is not None and self.timer_service.is_active:
             self.tray.set_state(
                 TrayState.ATTENTION, f"Away for {format_hm(span.seconds)} — click to resolve"
             )
@@ -455,7 +469,7 @@ class App(QApplication):
             self._long_running_dialog.raise_()
             return
         dialog = LongRunningDialog(elapsed, svc.started_local_time())
-        dialog.stop_requested.connect(lambda: svc.stop() if svc.is_running else None)
+        dialog.stop_requested.connect(lambda: svc.stop() if svc.is_active else None)
         dialog.finished.connect(lambda _code: setattr(self, "_long_running_dialog", None))
         self._long_running_dialog = dialog
         dialog.show()
@@ -497,7 +511,7 @@ class App(QApplication):
     def request_quit(self) -> None:
         """FR-111: with a timer running, ask before quitting."""
         svc = self.timer_service
-        if svc is None or not svc.is_running:
+        if svc is None or not svc.is_active:
             self.quit()
             return
         box = QMessageBox()
@@ -526,11 +540,14 @@ class App(QApplication):
     def _on_state_changed(self, state: TimerState) -> None:
         if self.tray is None or self.timer_service is None:
             return
-        running = state is TimerState.RUNNING
-        self.tray.set_running(running)
+        active = state is not TimerState.IDLE
+        paused = state is TimerState.PAUSED
+        self.tray.set_running(active, paused=paused)
         if self.timer_service.pending_recovery is not None:
             return
-        if running:
+        if paused:
+            self.tray.set_state(TrayState.PAUSED, self._tooltip())
+        elif active:
             self.tray.set_state(TrayState.RUNNING, self._tooltip())
         else:
             self.tray.set_state(TrayState.IDLE)
@@ -558,6 +575,8 @@ class App(QApplication):
         if svc is None or svc.running is None:
             return "Not tracking"
         parts = [format_hm(svc.elapsed_seconds())]
+        if svc.is_paused:
+            parts.insert(0, "Paused")
         type_name = self._label_name(Dimension.TYPE, svc.running.type_id)
         client_name = self._label_name(Dimension.CLIENT, svc.running.client_id)
         parts.extend(p for p in (type_name, client_name) if p)

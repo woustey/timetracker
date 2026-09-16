@@ -140,6 +140,16 @@ Tray-resident time tracker. Product requirements: `docs/PRD-time-tracker.md`
   to buy.
 - First run (M7): one welcome dialog — clients (one per line → chips), start at
   login — then the popover opens itself. `app.autostart_offered` records it.
+- Pause/resume (FR-212, v1.1, schema v4): `TimerState.PAUSED`; `is_running`
+  means accruing, `is_active` means running *or* paused — pick deliberately at
+  every call site. A pause is a chronology gap, not a duration: its length is
+  the wall-clock span `resume − paused_since` (so sleep during a pause counts
+  as paused on every OS) and is summed into `entry.paused_seconds`; the
+  tick is off while paused, the heartbeat keeps going. Stop while paused ends
+  the entry at the pause start and drops the trailing pause; recovery of a
+  timer that died paused does the same. Idle detection is suspended while
+  paused; an outstanding idle prompt survives a pause and is re-raised
+  instead of pausing (FR-210).
 - Docs to keep current when behaviour changes: `README.md`,
   `docs/DATA-FORMAT.md` (NFR-10), `docs/RELEASE-CHECKLIST.md`,
   `docs/RELEASE-NOTES.md`, `docs/MILESTONES.md` (the build history), and the

@@ -32,6 +32,7 @@ def test_idle_layout(popover: Popover) -> None:
     assert not popover.elapsed.isEnabled()
     assert popover.note.isHidden()
     assert popover.started_at.isHidden()
+    assert popover.pause_resume.isHidden()
     assert popover.today.text() == "Today: 0:00"
     # Seeded types are present; clients are empty except the placeholder.
     assert [popover.type.itemText(i) for i in range(popover.type.count())] == [
@@ -208,3 +209,35 @@ def test_last_mode_is_remembered_across_launches(
     third = Popover(service, labels, entry_service, settings_service)
     qtbot.addWidget(third)
     assert third.mode is PopoverMode.STOPWATCH
+
+
+def test_fr212_pause_and_resume_from_the_popover(
+    popover: Popover, service: TimerService, entries: EntryRepo, clock: FakeClock, qtbot
+) -> None:  # type: ignore[no-untyped-def]
+    popover.refresh()
+    qtbot.mouseClick(popover.start_stop, Qt.MouseButton.LeftButton)
+    assert popover.pause_resume.isVisibleTo(popover)
+    assert popover.pause_resume.text() == "Pause"
+    clock.advance(600)
+    service.on_tick()
+    qtbot.mouseClick(popover.pause_resume, Qt.MouseButton.LeftButton)
+    assert service.is_paused
+    assert popover.pause_resume.text() == "Resume"
+    assert popover.start_stop.text() == "Stop"
+    assert popover.started_at.text() == "Started 12:00 · paused"
+    assert not popover.elapsed.isEnabled()
+    assert popover.elapsed.text() == "0:10:00"
+    clock.advance(300)
+    assert popover.elapsed.text() == "0:10:00"
+    qtbot.mouseClick(popover.pause_resume, Qt.MouseButton.LeftButton)
+    assert service.is_running
+    assert popover.pause_resume.text() == "Pause"
+    assert popover.started_at.text() == "Started 12:00 · paused 0:05"
+    assert popover.elapsed.isEnabled()
+    clock.advance(60)
+    service.on_tick()
+    assert popover.elapsed.text() == "0:11:00"
+    qtbot.mouseClick(popover.start_stop, Qt.MouseButton.LeftButton)
+    (entry,) = entries.query()
+    assert (entry.duration_seconds, entry.paused_seconds) == (660, 300)
+    assert popover.pause_resume.isHidden()
