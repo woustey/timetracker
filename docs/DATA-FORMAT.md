@@ -99,7 +99,10 @@ pause start. Never edit this table.
 Everything in Settings, plus a few remembered UI states (`popover.last_mode`,
 `app.autostart_offered`). Reminder settings (1.1) are `reminders.enabled`,
 `reminders.minutes`, `reminders.days` (JSON list, 0 = Monday), `reminders.start`
-and `reminders.end` (`HH:MM`, local). Delete a row to get the default back.
+and `reminders.end` (`HH:MM`, local). Export presets (1.1, FR-608) are one JSON
+list under `export.presets`: `{name, fmt, columns, rounding_minutes, scope,
+folder}` each; a malformed element is skipped, never fatal. Delete a row to get
+the default back.
 
 ### `schema_migration`
 

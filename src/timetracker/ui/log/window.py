@@ -8,6 +8,7 @@ per-client / per-type subtotals, all SQL aggregates over the filter (FR-504).
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, time
 from pathlib import Path
 
@@ -40,6 +41,7 @@ from timetracker.services.entry_service import EntryService
 from timetracker.services.export_service import ExportOptions, ExportService
 from timetracker.services.label_service import LabelService
 from timetracker.services.settings_service import (
+    KEY_EXPORT_PRESETS,
     KEY_FIRST_WEEKDAY,
     KEY_ROUNDING_MINUTES,
     KEY_ROUNDING_SCOPE,
@@ -148,13 +150,19 @@ class LogWindow(QMainWindow):
         self.export_button = QToolButton()
         self.export_button.setText("Export")
         self.export_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        export_menu = QMenu(self.export_button)
-        self.export_csv_action = export_menu.addAction("CSV…")
-        self.export_xlsx_action = export_menu.addAction("Excel (XLSX)…")
+        self.export_menu = QMenu(self.export_button)
+        self.export_csv_action = self.export_menu.addAction("CSV…")
+        self.export_xlsx_action = self.export_menu.addAction("Excel (XLSX)…")
         self.export_csv_action.triggered.connect(lambda: self.export("csv"))
         self.export_xlsx_action.triggered.connect(lambda: self.export("xlsx"))
-        self.export_button.setMenu(export_menu)
+        self._preset_separator = self.export_menu.addSeparator()
+        self.preset_actions: list[QAction] = []  # FR-608: one click per preset
+        self.export_button.setMenu(self.export_menu)
         bar.addWidget(self.export_button)
+        self._rebuild_preset_menu()
+        settings.setting_changed.connect(
+            lambda key: self._rebuild_preset_menu() if key == KEY_EXPORT_PRESETS else None
+        )
 
         # -- table -----------------------------------------------------------
         self.table = QTableView()
@@ -453,13 +461,7 @@ class LogWindow(QMainWindow):
     # -- export (FR-601/602) -----------------------------------------------------
 
     def export(self, fmt: str) -> None:
-        options_dialog = ExportOptionsDialog(
-            fmt,
-            self.model.total_count,
-            self._settings.rounding_minutes,
-            self._settings.rounding_scope,
-            self,
-        )
+        options_dialog = self.make_export_dialog(fmt)
         if options_dialog.exec() != ExportOptionsDialog.DialogCode.Accepted:
             return
         self._settings.set(KEY_ROUNDING_MINUTES, options_dialog.rounding_minutes())
@@ -467,20 +469,80 @@ class LogWindow(QMainWindow):
         self._export_with(
             fmt,
             self.build_export_options(
-                fmt, options_dialog.rounding_minutes(), options_dialog.rounding_scope()
+                fmt,
+                options_dialog.rounding_minutes(),
+                options_dialog.rounding_scope(),
+                columns=options_dialog.columns(),
             ),
+            folder=options_dialog.folder_path(),
         )
 
-    def build_export_options(self, fmt: str, rounding_minutes: int, scope: object) -> ExportOptions:
+    def make_export_dialog(self, fmt: str) -> ExportOptionsDialog:
+        dialog = ExportOptionsDialog(
+            fmt,
+            self.model.total_count,
+            self._settings.rounding_minutes,
+            self._settings.rounding_scope,
+            self,
+            folder=self._settings.export_folder,
+            preset_names=self._settings.export_presets().names(),
+        )
+        dialog.preset_saved.connect(self._settings.save_export_preset)
+        return dialog
+
+    def build_export_options(
+        self,
+        fmt: str,
+        rounding_minutes: int,
+        scope: object,
+        *,
+        columns: tuple[str, ...] | None = None,
+    ) -> ExportOptions:
         from timetracker.core.rounding import RoundingScope
 
         assert isinstance(scope, RoundingScope)
-        return ExportOptions(
+        options = ExportOptions(
             flt=self.model.filter,
             rounding_minutes=rounding_minutes,
             scope=scope,
             csv_delimiter=self._settings.csv_delimiter,
         )
+        return replace(options, columns=columns) if columns else options
+
+    # -- presets (FR-608) --------------------------------------------------------
+
+    def _rebuild_preset_menu(self) -> None:
+        for action in self.preset_actions:
+            self.export_menu.removeAction(action)
+        self.preset_actions = []
+        presets = self._settings.export_presets().presets
+        self._preset_separator.setVisible(bool(presets))
+        for preset in presets:
+            action = QAction(f"{preset.name}  ({preset.fmt.upper()})", self.export_menu)
+            action.setToolTip(f"Export the current view to {preset.folder or 'the export folder'}")
+            action.triggered.connect(lambda _c=False, name=preset.name: self.run_preset(name))
+            self.export_menu.addAction(action)
+            self.preset_actions.append(action)
+
+    def run_preset(self, name: str) -> Path | None:
+        """One click: export the current view with the preset, no dialog. Returns the path."""
+        preset = self._settings.export_presets().get(name)
+        if preset is None:
+            self.status.showMessage(f"Preset “{name}” no longer exists", 8000)
+            return None
+        folder = Path(preset.folder) if preset.folder else self._settings.export_folder
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            self._on_export_failed(f"Cannot use folder {folder}: {exc}")
+            return None
+        path = _unused_path(folder / self.default_export_name(preset.fmt))
+        options = self.build_export_options(
+            preset.fmt, preset.rounding_minutes, preset.scope, columns=preset.columns
+        )
+        self._pending_export = (preset.fmt, options)
+        self._exporter.export(options, path)
+        return path
 
     def default_export_name(self, fmt: str) -> str:
         flt = self.model.filter
@@ -490,8 +552,15 @@ class LogWindow(QMainWindow):
             span = "all"
         return f"timetracker_{span}.{fmt}"
 
-    def _export_with(self, fmt: str, options: ExportOptions, suggested: str | None = None) -> None:
-        folder = self._settings.export_folder
+    def _export_with(
+        self,
+        fmt: str,
+        options: ExportOptions,
+        suggested: str | None = None,
+        *,
+        folder: Path | None = None,
+    ) -> None:
+        folder = folder or self._settings.export_folder
         name = suggested or self.default_export_name(fmt)
         pattern = "CSV files (*.csv)" if fmt == "csv" else "Excel workbooks (*.xlsx)"
         chosen, _ = QFileDialog.getSaveFileName(self, "Export", str(folder / name), pattern)
@@ -528,3 +597,15 @@ class LogWindow(QMainWindow):
         self.model.cancel_pending()
         super().closeEvent(event)  # type: ignore[arg-type]
         self.closed.emit()
+
+
+def _unused_path(path: Path) -> Path:
+    """``name.csv`` → ``name-2.csv`` … so a one-click preset never overwrites a file."""
+    if not path.exists():
+        return path
+    n = 2
+    while True:
+        candidate = path.with_name(f"{path.stem}-{n}{path.suffix}")
+        if not candidate.exists():
+            return candidate
+        n += 1

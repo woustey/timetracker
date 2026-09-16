@@ -176,6 +176,15 @@ the XLSX).
 The Excel file has real durations you can sum, a frozen header row, and a
 total row.
 
+The same dialog lets you untick **columns** you do not want in the file and
+pick the **folder**. **Save as preset…** keeps that combination (format,
+columns, rounding, scope, folder) under a name; from then on it sits in the
+**Export** menu and one click writes the current view to that folder with a
+dated name (`timetracker_<from>_<to>.xlsx`) — no dialog, and an existing file
+is never overwritten (`-2`, `-3`, … are added). The filters are *not* part of
+a preset: a preset exports whatever the log shows. Remove presets in
+*Settings › Export*.
+
 ### Quit, and what happens to a running timer
 
 Right-click → **Quit** while a timer runs asks: **Stop and save**, **Keep
@@ -190,7 +199,7 @@ Right-click → **Settings…**. Five tabs:
 |---|---|
 | **General** | *Start Time Tracker when I log in*; theme (system / light / dark); first day of the week; 12 h / 24 h clock |
 | **Timer** | idle threshold in minutes (0 = off); long-running warning in hours (0 = off). Sleep and lock are always detected. *Remind me when nothing is being tracked* (off by default): a small notification from the clock icon after N quiet minutes, only between the hours and on the days you tick; clicking it opens the popover. |
-| **Export** | default rounding and scope; CSV separator; export folder |
+| **Export** | default rounding and scope; CSV separator; export folder; the list of export presets (delete here, create them in the log's Export dialog) |
 | **Labels** | rename, archive (hide from the chips, keep in history) or delete a client or category; delete works only when no entry uses it |
 | **Data** | *Reveal data folder*, *Open log file*, **Back up now**, **Restore from backup…**, **Export all data…** (every entry and label as CSV and JSON) |
 

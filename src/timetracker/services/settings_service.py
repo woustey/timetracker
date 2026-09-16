@@ -12,6 +12,7 @@ from typing import Any
 
 from PySide6.QtCore import QLocale, QObject, Signal
 
+from timetracker.core.export_presets import ExportPreset, PresetList
 from timetracker.core.rounding import INCREMENTS, RoundingScope
 from timetracker.data.settings_repo import SettingsRepo
 
@@ -25,6 +26,7 @@ KEY_ROUNDING_MINUTES = "export.rounding_minutes"  # 0 | 6 | 10 | 15 | 30 (FR-604
 KEY_ROUNDING_SCOPE = "export.rounding_scope"  # "per_entry" | "per_group" (FR-606)
 KEY_CSV_DELIMITER = "export.csv_delimiter"  # None = locale default (FR-601)
 KEY_EXPORT_FOLDER = "export.folder"  # None = home directory
+KEY_EXPORT_PRESETS = "export.presets"  # JSON list of ExportPreset (FR-608)
 KEY_THEME = "ui.theme"  # "system" | "light" | "dark" (FR-701)
 KEY_FIRST_WEEKDAY = "ui.first_weekday"  # 0 = Monday … 6 = Sunday (FR-701)
 KEY_TIME_FORMAT = "ui.time_format"  # "24h" | "12h" (FR-701)
@@ -46,6 +48,7 @@ DEFAULTS: dict[str, Any] = {
     KEY_ROUNDING_SCOPE: "per_group",  # PRD-01 Q4: the more conservative default
     KEY_CSV_DELIMITER: None,
     KEY_EXPORT_FOLDER: None,
+    KEY_EXPORT_PRESETS: [],
     KEY_THEME: "system",
     KEY_FIRST_WEEKDAY: 0,
     KEY_TIME_FORMAT: "24h",
@@ -193,3 +196,19 @@ class SettingsService(QObject):
             return time.fromisoformat(str(self.get(key)))
         except ValueError:
             return time.fromisoformat(DEFAULTS[key])
+
+    # -- export presets (FR-608) ---------------------------------------------
+
+    def export_presets(self) -> PresetList:
+        from timetracker.services.export_service import COLUMNS
+
+        return PresetList.from_json(self.get(KEY_EXPORT_PRESETS), COLUMNS)
+
+    def save_export_preset(self, preset: ExportPreset) -> None:
+        from timetracker.services.export_service import COLUMNS
+
+        preset.validate(COLUMNS)
+        self.set(KEY_EXPORT_PRESETS, self.export_presets().upsert(preset).to_json())
+
+    def remove_export_preset(self, name: str) -> None:
+        self.set(KEY_EXPORT_PRESETS, self.export_presets().remove(name).to_json())

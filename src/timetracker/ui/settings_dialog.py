@@ -18,6 +18,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QTime, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -52,6 +53,7 @@ from timetracker.services.label_service import LabelService
 from timetracker.services.settings_service import (
     KEY_CSV_DELIMITER,
     KEY_EXPORT_FOLDER,
+    KEY_EXPORT_PRESETS,
     KEY_FIRST_WEEKDAY,
     KEY_IDLE_THRESHOLD_MIN,
     KEY_LONG_RUNNING_HOURS,
@@ -416,7 +418,51 @@ class SettingsDialog(QDialog):
         form.addRow(
             QLabel("Rounding is applied to exported files only; stored records never change.")
         )
+
+        # FR-608: presets are created from the log's Export dialog; here they can be removed.
+        presets_box = QGroupBox("Export presets")
+        presets_layout = QHBoxLayout(presets_box)
+        self.preset_list = QListWidget()
+        self.preset_list.setAccessibleName("Export presets")
+        self.preset_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        presets_layout.addWidget(self.preset_list, 1)
+        side = QVBoxLayout()
+        self.preset_delete = QPushButton("Delete")
+        self.preset_delete.setEnabled(False)
+        self.preset_delete.clicked.connect(self._delete_preset)
+        side.addWidget(self.preset_delete)
+        side.addStretch(1)
+        hint = QLabel("Save one with “Save as preset…” in the log’s Export dialog.")
+        hint.setWordWrap(True)
+        side.addWidget(hint)
+        presets_layout.addLayout(side)
+        self.preset_list.itemSelectionChanged.connect(
+            lambda: self.preset_delete.setEnabled(bool(self.preset_list.selectedItems()))
+        )
+        self._settings.setting_changed.connect(
+            lambda key: self._reload_presets() if key == KEY_EXPORT_PRESETS else None
+        )
+        self._reload_presets()
+        form.addRow(presets_box)
         return page
+
+    def _reload_presets(self) -> None:
+        self.preset_list.clear()
+        for preset in self._settings.export_presets().presets:
+            rounding = (
+                "no rounding"
+                if not preset.rounding_minutes
+                else f"{preset.rounding_minutes} min {preset.scope.display}"
+            )
+            folder = preset.folder or "export folder"
+            summary = f"{preset.fmt.upper()}, {len(preset.columns)} columns, {rounding}"
+            item = QListWidgetItem(f"{preset.name} — {summary} → {folder}")
+            item.setData(Qt.ItemDataRole.UserRole, preset.name)
+            self.preset_list.addItem(item)
+
+    def _delete_preset(self) -> None:
+        for item in self.preset_list.selectedItems():
+            self._settings.remove_export_preset(str(item.data(Qt.ItemDataRole.UserRole)))
 
     def _choose_export_folder(self) -> None:
         chosen = QFileDialog.getExistingDirectory(

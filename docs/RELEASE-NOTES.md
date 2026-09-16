@@ -11,6 +11,10 @@ Everything in 1.0.0, plus the v1.1 backlog from PRD-01 §14:
 - **Reminders** (FR-702, off by default): *Settings › Timer › Remind me when
   nothing is being tracked* — after N quiet minutes inside your working hours
   and days, a passive tray notification; clicking it opens the popover.
+- **Export presets** (FR-608) and **column selection** (FR-603): the export
+  dialog now has column tick-boxes and a folder; *Save as preset…* names the
+  combination, and the *Export* menu then writes the current view in one
+  click (dated file name, never overwrites). Manage them in *Settings › Export*.
 
 ---
 

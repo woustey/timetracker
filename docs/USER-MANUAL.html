@@ -131,6 +131,7 @@ color:var(--muted);font-size:.85rem}
 <p>In the log, set the filters to what you want to hand over (for example <em>Last month</em> and one client), click <strong>Export</strong> → <strong>Excel (XLSX)…</strong> or <strong>CSV…</strong>.</p>
 <p>The export dialog offers <strong>rounding</strong>: none, 6, 10, 15 or 30 minutes, always rounded <em>up</em>, and a <strong>scope</strong>: <em>per entry</em> (each line rounded) or <em>per day × client × type</em> (the day&#x27;s lines for one client and category are added first, then rounded once — three 2-minute emails become one 6-minute block, not three). The stored entries are never changed; only the file is. The file says which rounding was used (last lines of the CSV, an <em>Export info</em> sheet in the XLSX).</p>
 <p>The Excel file has real durations you can sum, a frozen header row, and a total row.</p>
+<p>The same dialog lets you untick <strong>columns</strong> you do not want in the file and pick the <strong>folder</strong>. <strong>Save as preset…</strong> keeps that combination (format, columns, rounding, scope, folder) under a name; from then on it sits in the <strong>Export</strong> menu and one click writes the current view to that folder with a dated name (<code>timetracker_&lt;from&gt;_&lt;to&gt;.xlsx</code>) — no dialog, and an existing file is never overwritten (<code>-2</code>, <code>-3</code>, … are added). The filters are <em>not</em> part of a preset: a preset exports whatever the log shows. Remove presets in <em>Settings › Export</em>.</p>
 <h3>Quit, and what happens to a running timer</h3>
 <p>Right-click → <strong>Quit</strong> while a timer runs asks: <strong>Stop and save</strong>, <strong>Keep running</strong> (cancels the quit) or <strong>Discard</strong>. If the computer crashes or loses power, the next launch offers <strong>Recover entry</strong> — at most 30 seconds are lost.</p>
 <h3>Settings</h3>
@@ -138,7 +139,7 @@ color:var(--muted);font-size:.85rem}
 <table><thead><tr><th>Tab</th><th>What is there</th></tr></thead><tbody>
 <tr><td><strong>General</strong></td><td><em>Start Time Tracker when I log in</em>; theme (system / light / dark); first day of the week; 12 h / 24 h clock</td></tr>
 <tr><td><strong>Timer</strong></td><td>idle threshold in minutes (0 = off); long-running warning in hours (0 = off). Sleep and lock are always detected. <em>Remind me when nothing is being tracked</em> (off by default): a small notification from the clock icon after N quiet minutes, only between the hours and on the days you tick; clicking it opens the popover.</td></tr>
-<tr><td><strong>Export</strong></td><td>default rounding and scope; CSV separator; export folder</td></tr>
+<tr><td><strong>Export</strong></td><td>default rounding and scope; CSV separator; export folder; the list of export presets (delete here, create them in the log&#x27;s Export dialog)</td></tr>
 <tr><td><strong>Labels</strong></td><td>rename, archive (hide from the chips, keep in history) or delete a client or category; delete works only when no entry uses it</td></tr>
 <tr><td><strong>Data</strong></td><td><em>Reveal data folder</em>, <em>Open log file</em>, <strong>Back up now</strong>, <strong>Restore from backup…</strong>, <strong>Export all data…</strong> (every entry and label as CSV and JSON)</td></tr>
 </tbody></table>

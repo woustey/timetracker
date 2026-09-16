@@ -239,6 +239,16 @@ group on the Timer tab, `TrayIcon.show_message` + `message_clicked` →
 popover. Balloon delivery is platform-dependent and not verified by tests
 (`last_message` is). Tests: service (6), settings dialog (1), tray (1).
 
+**FR-608 export presets:** `core/export_presets.py` (`ExportPreset`,
+`PresetList`: validation, JSON, lenient load, case-insensitive names), stored
+as one list under `export.presets`; the Export dialog grew the FR-603 column
+tick-boxes, a folder row and *Save as preset…*; the log's *Export* menu lists
+presets and `LogWindow.run_preset()` writes the current view without a dialog
+to `folder/timetracker_<from>_<to>.<fmt>` (`-2`, `-3` … if taken); *Settings ›
+Export* lists and deletes them. "Grouping" in the PRD's wording was read as
+the rounding scope (FR-607 aggregated export stays out). Tests: core (4
+functions, 9 cases), settings (1), log window (2).
+
 ---
 
 ## What is deliberately not in v1

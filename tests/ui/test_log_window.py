@@ -325,3 +325,69 @@ def test_add_entry_with_a_new_typed_client_outside_the_range(
     selected = window.selected_entry_ids()
     assert len(selected) == 1 and entries.get(selected[0]).client_id == created.id
     assert "range widened" in window.status.currentMessage()
+
+
+# -- FR-608 export presets --------------------------------------------------------
+
+
+def test_export_dialog_columns_and_save_as_preset(
+    window: LogWindow, settings_service: SettingsService, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from PySide6.QtWidgets import QMessageBox
+
+    from timetracker.services.export_service import COLUMNS
+
+    dialog = window.make_export_dialog("xlsx")
+    assert dialog.columns() == COLUMNS  # FR-603: all on by default
+    assert dialog.folder_path() == settings_service.export_folder
+    dialog.column_boxes["Note"].setChecked(False)
+    dialog.column_boxes["Record method"].setChecked(False)
+    assert dialog.columns() == COLUMNS[:7]
+    dialog.increment.setCurrentIndex(dialog.increment.findData(15))
+    monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: None))
+    assert dialog.save_preset_named("  ") is False  # empty name refused with a message
+    assert dialog.save_preset_named("Invoice") is True
+    saved = settings_service.export_presets().get("Invoice")
+    assert saved is not None
+    assert (saved.fmt, saved.columns, saved.rounding_minutes) == ("xlsx", COLUMNS[:7], 15)
+    assert saved.folder is None or saved.folder == str(settings_service.export_folder)
+    # Every column off disables Export and Save.
+    for cb in dialog.column_boxes.values():
+        cb.setChecked(False)
+    assert not dialog.save_preset_button.isEnabled()
+    dialog.close()
+    # The Export menu lists it, after the separator.
+    texts = [a.text() for a in window.export_menu.actions() if not a.isSeparator()]
+    assert texts == ["CSV…", "Excel (XLSX)…", "Invoice  (XLSX)"]
+    settings_service.remove_export_preset("Invoice")
+    texts = [a.text() for a in window.export_menu.actions() if not a.isSeparator()]
+    assert texts == ["CSV…", "Excel (XLSX)…"]
+
+
+def test_run_preset_exports_the_current_view_in_one_click(
+    window: LogWindow,
+    settings_service: SettingsService,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from timetracker.core.export_presets import ExportPreset
+
+    out = tmp_path / "invoices"
+    settings_service.save_export_preset(
+        ExportPreset("Weekly", "csv", ("Date", "Client", "Duration (h:mm)"), 6, folder=str(out))
+    )
+    # The in-memory test DB has no path for the worker: route through the sync path.
+    monkeypatch.setattr(
+        window._exporter,  # noqa: SLF001
+        "export",
+        lambda options, path: window._exporter.export_sync(window._repo, options, path),  # noqa: SLF001
+    )
+    first = window.run_preset("Weekly")
+    assert first == out / "timetracker_2026-09-07_2026-09-13.csv"
+    assert first.exists()
+    header = first.read_text(encoding="utf-8-sig").splitlines()[0].replace('"', "")
+    d = settings_service.csv_delimiter
+    assert header == d.join(("Date", "Client", "Duration (h:mm)"))
+    second = window.run_preset("Weekly")  # never overwrites
+    assert second == out / "timetracker_2026-09-07_2026-09-13-2.csv"
+    assert window.run_preset("gone") is None
