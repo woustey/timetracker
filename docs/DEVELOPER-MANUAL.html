@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Time Tracker — developer manual</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--muted:#666;--border:#e2e2e2;
+--code-bg:#f5f5f5;--pre-bg:#1e1e28;--pre-fg:#e6e6e6;--accent:#2563eb;
+--th-bg:#f0f2f5;--banner:#fff3cd;--banner-fg:#664d03}
+@media (prefers-color-scheme:dark){:root{--bg:#15161a;--fg:#e6e6e6;
+--muted:#9aa0a6;--border:#2c2e36;--code-bg:#23252d;--pre-bg:#0e0f13;
+--pre-fg:#e6e6e6;--accent:#6ea8fe;--th-bg:#20222a;--banner:#332701;
+--banner-fg:#ffe08a}}
+:root[data-theme=dark]{--bg:#15161a;--fg:#e6e6e6;--muted:#9aa0a6;
+--border:#2c2e36;--code-bg:#23252d;--pre-bg:#0e0f13;--pre-fg:#e6e6e6;
+--accent:#6ea8fe;--th-bg:#20222a;--banner:#332701;--banner-fg:#ffe08a}
+:root[data-theme=light]{--bg:#fff;--fg:#1a1a1a;--muted:#666;
+--border:#e2e2e2;--code-bg:#f5f5f5;--pre-bg:#1e1e28;--pre-fg:#e6e6e6;
+--accent:#2563eb;--th-bg:#f0f2f5;--banner:#fff3cd;--banner-fg:#664d03}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+Helvetica,Arial,sans-serif}
+main{max-width:820px;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+h1{font-size:2rem;line-height:1.2;margin:0 0 1rem;
+border-bottom:2px solid var(--border);padding-bottom:.5rem}
+h2{font-size:1.4rem;margin:2.2rem 0 .8rem;border-bottom:1px solid
+var(--border);padding-bottom:.3rem}
+h3{font-size:1.12rem;margin:1.6rem 0 .6rem}
+p{margin:.7rem 0}
+a{color:var(--accent)}
+code{background:var(--code-bg);padding:.12em .35em;border-radius:4px;
+font:.88em/1.5 "SF Mono",Consolas,"Liberation Mono",Menlo,monospace}
+pre{background:var(--pre-bg);color:var(--pre-fg);padding:1rem 1.1rem;
+border-radius:8px;overflow-x:auto;margin:.6rem 0}
+pre code{background:none;padding:0;color:inherit;font-size:.86rem}
+ul,ol{padding-left:1.5rem}
+li{margin:.35rem 0}
+li>pre{margin:.4rem 0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;
+display:block;overflow-x:auto}
+th,td{border:1px solid var(--border);padding:.5rem .7rem;
+text-align:left;vertical-align:top}
+th{background:var(--th-bg)}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--th-bg) 40%,
+transparent)}
+.banner{background:var(--banner);color:var(--banner-fg);
+border:1px solid color-mix(in srgb,var(--banner-fg) 30%,transparent);
+padding:.6rem .9rem;border-radius:8px;margin:0 0 1.5rem;font-size:.92rem}
+.toggle{position:fixed;top:1rem;right:1rem;background:var(--code-bg);
+color:var(--fg);border:1px solid var(--border);border-radius:6px;
+padding:.35rem .6rem;cursor:pointer;font-size:.85rem}
+footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);
+color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<button class="toggle" id="tg">Theme</button>
+<main>
+
+<h1>Time Tracker — developer manual</h1>
+<p><em>For the 1.0.0 code base (tag <code>v1.0.0</code>) · written 16 September 2026 · commands shown were run on Windows 11 with Python 3.13.0; the macOS/Linux form is given where it differs.</em></p>
+<h2>Overview</h2>
+<p><strong>Who this is for:</strong> a developer who knows Python and git, has not seen this repository before, and has to change it — fix a bug, add a setting, add a column, cut a release.</p>
+<p><strong>After reading, you can</strong> set up the repository, run the checks that gate a commit, place a change in the right layer without breaking the invariants the tests enforce, and build the distributable binaries.</p>
+<p>The app is a tray-resident time tracker: PySide6 (Qt Widgets, no QML) on top of stdlib <code>sqlite3</code>. Everything the code does is specified in two documents that the code cites by id:</p>
+<ul>
+<li><a href="PRD-time-tracker.md"><code>PRD-time-tracker.md</code></a> (PRD-01): product requirements, <code>FR-nnn</code> / <code>NFR-nn</code> ids, open questions in §15.</li>
+<li><a href="PRD-time-tracker-qt.md"><code>PRD-time-tracker-qt.md</code></a> (PRD-02): technical design, test plan §11, milestones §13.</li>
+</ul>
+<p><a href="../CLAUDE.md"><code>../CLAUDE.md</code></a> is the short list of invariants and decisions taken with the owner. Read it before changing anything; it is the contract the tests enforce. <a href="MILESTONES.md"><code>MILESTONES.md</code></a> is the build history and explains <em>why</em> several things look the way they do.</p>
+<h2>Prerequisites</h2>
+<table><thead><tr><th>Tool</th><th>Version used</th><th>Check with</th></tr></thead><tbody>
+<tr><td>Python</td><td>3.13.0 (3.12 is the minimum and is in CI)</td><td><code>py -3.13 --version</code></td></tr>
+<tr><td>git</td><td>any recent</td><td><code>git --version</code></td></tr>
+<tr><td>PySide6</td><td>6.11.2 (installed by pip)</td><td><code>.venv\Scripts\python -c &quot;import PySide6; print(PySide6.__version__)&quot;</code></td></tr>
+<tr><td>openpyxl</td><td>3.1.5 (installed by pip)</td><td>same pattern</td></tr>
+<tr><td>Inno Setup 6</td><td>only to build the Windows installer</td><td><code>winget install JRSoftware.InnoSetup</code></td></tr>
+</tbody></table>
+<p>Runtime dependencies are <strong>four</strong>: PySide6, openpyxl, tzdata (Windows only), pyobjc-framework-Quartz (macOS only). Adding a fifth is an owner decision — ask first. Dev tools (pytest, pytest-qt, ruff, mypy) live in the <code>dev</code> extra; Nuitka and PyInstaller in the <code>build</code> extra.</p>
+<h2>Step by step: from clone to a merged change</h2>
+<ol>
+<li><strong>Clone and create the environment.</strong>
+<pre><code class="lang-powershell">git clone https://github.com/woustey/timetracker.git
+cd timetracker
+py -3.13 -m venv .venv
+.venv\Scripts\pip install -e .[dev]</code></pre>
+<p>Output: pip lists PySide6, openpyxl, tzdata, pytest, pytest-qt, ruff, mypy and their dependencies, ending in <code>Successfully installed …</code>. On macOS/Linux use <code>python3 -m venv .venv &amp;&amp; .venv/bin/pip install -e .[dev]</code>.</p></li>
+<li><strong>Run the full check set.</strong> All three must be clean before a commit.
+<pre><code class="lang-powershell">.venv\Scripts\python -m pytest -q</code></pre>
+<p>Output:</p>
+<pre><code>..........................................ss..ss........................ [ 89%]
+..................................................                       [100%]
+477 passed, 5 skipped in 27.39s</code></pre>
+<p>The 5 skips are platform-specific tests (macOS/Linux providers) that do not run on Windows. Qt runs offscreen (<code>QT_QPA_PLATFORM=offscreen</code> is set in <code>conftest.py</code>), so no windows appear.</p>
+<pre><code class="lang-powershell">.venv\Scripts\ruff check .</code></pre>
+<p>Output: <code>All checks passed!</code></p>
+<pre><code class="lang-powershell">.venv\Scripts\mypy</code></pre>
+<p>Output: <code>Success: no issues found in 23 source files</code> — mypy is strict on <code>core/</code> and <code>data/</code> only (see <code>[tool.mypy]</code> in <code>pyproject.toml</code>).</p></li>
+<li><strong>Run the app from source</strong> to see your change. Use the GUI script, not the chat/IDE &quot;run&quot; button: a console that owns the process tree kills the tray app when it closes.
+<pre><code class="lang-powershell">.venv\Scripts\timetracker.exe</code></pre>
+<p>Output: nothing on the console; the clock icon appears in the tray within a second. <code>python -m timetracker</code> also works and keeps a console attached for <code>print</code> debugging. Point it at a throw-away data folder so you do not touch your own entries:</p>
+<pre><code class="lang-powershell">$env:TIMETRACKER_DATA_DIR = &quot;$env:TEMP\tt-dev&quot;; .venv\Scripts\timetracker.exe</code></pre>
+<p>Output: the folder is created with <code>timetracker.sqlite3</code>, <code>timetracker.log</code>, <code>instance.lock</code>, and the first-run welcome dialog opens because the settings table is empty.</p></li>
+<li><strong>Find the layer for your change.</strong> The package is layered and a test enforces the direction of imports:
+<table><thead><tr><th>Package</th><th>Knows about</th><th>Must not import</th></tr></thead><tbody>
+<tr><td><code>core/</code></td><td>pure Python: clock protocol, models, duration grammar, rounding, anchoring, label matching</td><td>PySide6, <code>ui/</code></td></tr>
+<tr><td><code>data/</code></td><td><code>sqlite3</code>: schema, migrations, repositories, paths</td><td>PySide6, <code>ui/</code></td></tr>
+<tr><td><code>services/</code></td><td>repositories + <code>Clock</code>; Qt signals allowed (<code>QObject</code>)</td><td>widgets</td></tr>
+<tr><td><code>ui/</code></td><td>Qt Widgets; talks to services only</td><td>SQL</td></tr>
+<tr><td><code>platform/</code></td><td>OS APIs: idle input, autostart, console detach</td><td>—</td></tr>
+<tr><td><code>app.py</code></td><td>wires everything at boot</td><td>—</td></tr>
+</tbody></table>
+<p>A rule of thumb: if the change is about <em>what a number is</em> (a duration, a rounding, a date boundary) it belongs in <code>core/</code> with a pure test; if it is about <em>how it is stored or queried</em>, <code>data/</code>; if it coordinates a workflow (start a timer, export a file), <code>services/</code>; only pixels go in <code>ui/</code>.</p></li>
+<li><strong>Write the test in the matching folder</strong> (<code>tests/core</code>, <code>tests/data</code>, <code>tests/services</code>, <code>tests/ui</code>). Fixtures from <code>tests/conftest.py</code>: <code>clock</code> (a <code>FakeClock</code> you advance by hand), <code>conn</code> (an in-memory, migrated database), <code>clients</code> / <code>types</code> / <code>entries</code> / <code>timers</code> / <code>settings</code> (repositories on that connection), <code>booted_app</code> (a full <code>App</code> on a temporary data folder for end-to-end UI tests, with <code>qtbot</code> from pytest-qt). Never call <code>datetime.now()</code> or <code>time.monotonic()</code> in code or tests — go through the <code>Clock</code>.
+<p>Run just your file while iterating:</p>
+<pre><code class="lang-powershell">.venv\Scripts\python -m pytest tests/core/test_rounding.py -q</code></pre>
+<p>Output: <code>62 passed in 0.08s</code></p></li>
+<li><strong>Commit.</strong> The subject names the milestone or area first, then what changed (<code>M5: …</code>, or after 1.0 a short area tag such as <code>export: …</code>). CI (<code>.github/workflows/ci.yml</code>) runs ruff, mypy and pytest on Ubuntu, Windows and macOS × Python 3.12 and 3.13 for every push to <code>main</code>; the branch is green as of <code>614dc2f</code>.</li>
+</ol>
+<h2>Common tasks</h2>
+<h3>Add a setting</h3>
+<ol>
+<li><code>services/settings_service.py</code>: add a <code>KEY_…</code> constant and its default in <code>DEFAULTS</code>. Keys are dotted strings (<code>ui.theme</code>, <code>export.rounding_minutes</code>); values are JSON-serialisable and stored in the <code>setting</code> table.</li>
+<li><code>ui/settings_dialog.py</code>: add the control to the right tab (<code>_general_tab</code>, <code>_timer_tab</code>, <code>_export_tab</code>, <code>_labels_tab</code>, <code>_data_tab</code>), read it in the load path and write it in the apply path.</li>
+<li>If something must react live (theme, time format, idle threshold do), connect <code>SettingsService.setting_changed</code> in <code>app.py</code> — see <code>_on_setting_changed</code>.</li>
+<li>Tests: <code>tests/services/test_settings_service.py</code> for the default and round-trip; <code>tests/ui/test_settings_dialog.py</code> for the control.</li>
+<li>Document it: <code>README.md</code> (if user-visible), <code>docs/DATA-FORMAT.md</code> (the settings table lists known keys), <code>USER-MANUAL.md</code> (the Settings table).</li>
+</ol>
+<h3>Change the database schema</h3>
+<p>Schema changes are forward-only, versioned migrations; the app migrates on launch and refuses to open a database newer than itself.</p>
+<ol>
+<li><code>data/schema.py</code>: bump <code>TARGET_VERSION</code>, add the new DDL piece, and update <code>CURRENT_DDL</code> — the DDL a <em>fresh</em> database is built from.</li>
+<li>Add <code>data/migrations/m000N_&lt;slug&gt;.py</code> exposing <code>version = N</code> and <code>upgrade(conn)</code>. Migrations are discovered by <code>pkgutil</code> from the file name and must be contiguous from 1. <code>m0003_manual_method.py</code> is the template for a table rebuild (SQLite cannot alter a CHECK constraint); <code>m0002</code> for an added index.</li>
+<li>Run <code>tests/data/test_migrate.py</code>. Its drift guard applies every migration to an empty database and compares <code>sqlite_master</code> with <code>CURRENT_DDL</code>; a mismatch between the two is the most common mistake and fails there.</li>
+<li>Add a <code>vN-1 → vN</code> test with a database built from the old DDL and real rows, like <code>test_v2_to_v3_…</code> does.</li>
+<li>Update <code>docs/DATA-FORMAT.md</code> (NFR-10 promises the format is documented).</li>
+</ol>
+<p><code>migrate()</code> takes a pre-migration copy (<code>timetracker-pre-vN.sqlite3</code>) next to the database before applying anything.</p>
+<h3>Change an export</h3>
+<p><code>services/export_service.py</code> produces rows via <code>EntryRepo.export_rows</code>, then <code>core/rounding.py</code> applies increment and scope, then CSV/XLSX writers. Goldens for the CSV shape live in <code>tests/fixtures/export_*.csv</code> and are compared byte-exact (CRLF; <code>.gitattributes</code> marks them <code>-text</code>). After a deliberate change:</p>
+<pre><code class="lang-powershell">$env:UPDATE_GOLDENS = &quot;1&quot;; .venv\Scripts\python -m pytest tests/services/test_export_service.py -q</code></pre>
+<p>Output: the run rewrites the fixtures and passes; <code>git diff tests/fixtures</code> then shows exactly what changed in the file format. Remove the variable afterwards. Rounding must never touch stored rows — <code>test_export_service.py</code> checks that the database is unchanged after an export.</p>
+<h3>Measure start-up and idle cost (NFR-01, NFR-03)</h3>
+<p>Any build — source, PyInstaller, Nuitka or the installed app — has a measurement mode: boot, idle for N seconds, print one JSON line, exit.</p>
+<pre><code class="lang-powershell">$env:TIMETRACKER_MEASURE_BOOT = &quot;3&quot;; $env:TIMETRACKER_ASSUME_TRAY = &quot;1&quot;; $env:TIMETRACKER_DATA_DIR = &quot;$env:TEMP\tt-manual&quot;; .venv\Scripts\python -m timetracker</code></pre>
+<p>Output (source tree, this laptop):</p>
+<pre><code>{&quot;boot_seconds&quot;: 0.892, &quot;idle_cpu_seconds&quot;: 0.0, &quot;idle_wall_seconds&quot;: 3.019, &quot;idle_cpu_percent&quot;: 0.0, &quot;rss_mb&quot;: 72.9}</code></pre>
+<p>The installed Nuitka build on the same machine printed <code>{&quot;boot_seconds&quot;: 1.03, &quot;idle_cpu_seconds&quot;: 0.0156, &quot;idle_wall_seconds&quot;: 3.005, &quot;idle_cpu_percent&quot;: 0.52, &quot;rss_mb&quot;: 96.0}</code>. <code>TIMETRACKER_ASSUME_TRAY=1</code> skips the &quot;is there a tray?&quot; check so this also runs on a headless CI runner. <code>tests/test_nfr.py</code> runs it as a subprocess and asserts the budgets.</p>
+<h3>Build the binaries</h3>
+<p>The scripts take <strong>no arguments</strong> — <code>--help</code> starts a build. Install the extra first: <code>.venv\Scripts\pip install -e .[build]</code>.</p>
+<pre><code class="lang-powershell">.venv\Scripts\python scripts\build_dev.py</code></pre>
+<p>Output: PyInstaller log (<code>INFO: PyInstaller: 6.22.3 …</code>), result in <code>dist\dev\timetracker\</code> within a minute. Good enough to check that a frozen build finds its resources; never <code>--onefile</code> (it unpacks on every launch).</p>
+<pre><code class="lang-powershell">.venv\Scripts\python scripts\build_release.py</code></pre>
+<p>Output: Nuitka log; the first run downloads a C compiler when none is found (<code>--assume-yes-for-downloads</code>); several minutes. Result: <code>dist\release\windows\timetracker.dist\timetracker.exe</code> (87 MB folder, Qt as separate DLLs — required by the LGPL, see <code>THIRD_PARTY_NOTICES.md</code>). The script prints <code>built C:\…\dist\release\windows\timetracker.dist</code> at the end. On macOS the result is <code>dist/release/macos/Time Tracker.app</code>; on Linux <code>dist/release/linux/timetracker.dist/timetracker</code>.</p>
+<p>Windows installer, after the release build:</p>
+<pre><code class="lang-powershell">&amp; &quot;$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe&quot; installer\windows.iss</code></pre>
+<p>Output: the Inno Setup compiler log ending with the output file name; result <code>dist\installer\TimeTracker-1.0.0-setup.exe</code> (24 MB). A winget install puts ISCC under <code>%LOCALAPPDATA%</code>; the CI runner has it under <code>%ProgramFiles(x86)%</code>. Test a silent per-user install with <code>TimeTracker-1.0.0-setup.exe /SILENT</code> — note that silent mode does not create the Desktop shortcut unless you pass <code>/TASKS=desktopicon</code>.</p>
+<h3>Cut a release</h3>
+<ol>
+<li>Bump <code>version</code> in <code>pyproject.toml</code> and the heading in <code>docs/RELEASE-NOTES.md</code>; update <code>docs/MILESTONES.md</code>.</li>
+<li>Walk <code>docs/RELEASE-CHECKLIST.md</code> (clean install, tray states, idle prompt, export, 50 k-row log, LGPL check).</li>
+<li>Tag and push: <code>git tag -a v1.0.1 -m &quot;Time Tracker 1.0.1&quot;; git push origin v1.0.1</code>. <code>.github/workflows/release.yml</code> builds Windows (installer + portable zip), macOS (DMG) and Linux (AppImage + tar.gz), smoke-tests each binary in measurement mode, and publishes a GitHub Release with the release notes as body. Watch it at <em>Actions › Release</em>.</li>
+</ol>
+<h3>Regenerate the icons</h3>
+<pre><code class="lang-powershell">.venv\Scripts\python scripts\make_icons.py</code></pre>
+<p>Output: <code>wrote 7 PNGs and icon.ico to C:\…\src\timetracker\resources</code>. The PNG encoder is not byte-stable, so a regeneration shows as a diff even when nothing changed; only commit it after a deliberate change to the painter in <code>ui/icons.py</code>.</p>
+<h2>Troubleshooting</h2>
+<table><thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead><tbody>
+<tr><td><code>FAILED tests/test_layering.py::test_no_qt_or_ui_imports[core\_demo_bad.py]</code></td><td>a module under <code>core/</code> or <code>data/</code> imports PySide6 or <code>timetracker.ui</code></td><td>move the Qt-dependent part to <code>services/</code> or <code>ui/</code>; pass plain values down</td></tr>
+<tr><td><code>tests/test_no_network.py</code> fails</td><td>a new import of <code>socket</code>, <code>urllib</code>, <code>http</code>, <code>QtNetwork</code> … or a socket call at boot</td><td>remove it; NFR-05 forbids any network code path. Single-instance IPC uses a file lock plus a watched file for that reason</td></tr>
+<tr><td><code>SchemaTooNewError</code> / app refuses to start after switching branches</td><td>the database on disk was migrated by a newer branch</td><td>point <code>TIMETRACKER_DATA_DIR</code> at a fresh folder, or restore the <code>timetracker-pre-vN.sqlite3</code> copy</td></tr>
+<tr><td><code>test_migrate.py</code> drift guard fails</td><td><code>CURRENT_DDL</code> and the sum of migrations disagree</td><td>make the fresh DDL and the migration produce identical <code>sqlite_master</code> rows (column order and constraint text included)</td></tr>
+<tr><td><code>missing golden export_….csv; run with UPDATE_GOLDENS=1</code></td><td>a new export variant has no fixture</td><td>run once with <code>UPDATE_GOLDENS=1</code>, inspect the file, commit it</td></tr>
+<tr><td>Second <code>timetracker.exe</code> exits immediately with code 1</td><td>an instance already holds <code>instance.lock</code>; the second one only asks the first to show its popover</td><td>look for the popover; kill the first instance to run a new one</td></tr>
+<tr><td><code>FileNotFoundError: [WinError 3] … &#x27;Z:\\&#x27;</code> at boot</td><td><code>TIMETRACKER_DATA_DIR</code> points at a location whose parent cannot be created</td><td>use an existing drive/folder</td></tr>
+<tr><td><code>tests/test_log_performance.py</code> fails on a laptop on battery</td><td>the 200 ms budget was missed once</td><td>it is best-of-3; plug in / close other apps and re-run; CI uses a 500 ms budget</td></tr>
+<tr><td>A console window opens with the tray app</td><td>launched via <code>python.exe</code> or from a shell that owns the console</td><td>use <code>timetracker.exe</code> / <code>pythonw -m timetracker</code>; <code>platform/win32.py</code> frees an orphaned console only when it has no other client</td></tr>
+<tr><td><code>scripts\build_release.py --help</code> starts compiling</td><td>the scripts have no CLI</td><td>Ctrl+C; delete <code>nuitka-crash-report.xml</code> if it appears</td></tr>
+</tbody></table>
+<h2>Reference</h2>
+<p><strong>Environment variables</strong></p>
+<table><thead><tr><th>Variable</th><th>Effect</th></tr></thead><tbody>
+<tr><td><code>TIMETRACKER_DATA_DIR</code></td><td>data folder (database, log, lock, backups) instead of the platform default</td></tr>
+<tr><td><code>TIMETRACKER_MEASURE_BOOT=&lt;seconds&gt;</code></td><td>boot, idle that long, print one JSON line, exit 0</td></tr>
+<tr><td><code>TIMETRACKER_ASSUME_TRAY=1</code></td><td>skip the system-tray availability check (headless runs)</td></tr>
+<tr><td><code>UPDATE_GOLDENS=1</code></td><td>tests: rewrite <code>tests/fixtures/export_*.csv</code></td></tr>
+<tr><td><code>QT_QPA_PLATFORM=offscreen</code></td><td>set by <code>conftest.py</code>; tests never open windows</td></tr>
+</tbody></table>
+<p><strong>Commands</strong></p>
+<table><thead><tr><th>Command</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>.venv\Scripts\python -m pytest -q</code></td><td>477 tests + 5 skips, ~30 s</td></tr>
+<tr><td><code>.venv\Scripts\ruff check .</code></td><td>lint, line length 100, <code>docs/</code> excluded</td></tr>
+<tr><td><code>.venv\Scripts\mypy</code></td><td>strict typing on <code>core/</code> and <code>data/</code></td></tr>
+<tr><td><code>.venv\Scripts\timetracker.exe</code></td><td>run from source without a console</td></tr>
+<tr><td><code>python scripts/make_icons.py</code></td><td>render <code>resources/icon-*.png</code> and <code>icon.ico</code></td></tr>
+<tr><td><code>python scripts/build_dev.py</code></td><td>PyInstaller onedir → <code>dist/dev/</code></td></tr>
+<tr><td><code>python scripts/build_release.py</code></td><td>Nuitka standalone → <code>dist/release/&lt;os&gt;/</code></td></tr>
+<tr><td><code>ISCC.exe installer\windows.iss</code></td><td>Windows installer → <code>dist/installer/</code></td></tr>
+<tr><td><code>installer/linux/make_appimage.sh</code>, <code>installer/macos/make_dmg.sh</code></td><td>Linux/macOS packages (used by the release workflow)</td></tr>
+</tbody></table>
+<p><strong>Package map</strong> (<code>src/timetracker/</code>)</p>
+<table><thead><tr><th>Module</th><th>Responsibility</th></tr></thead><tbody>
+<tr><td><code>core/clock.py</code></td><td><code>Clock</code> protocol, <code>SystemClock(tz_name)</code>, <code>FakeClock</code></td></tr>
+<tr><td><code>core/models.py</code></td><td><code>Entry</code>, <code>Label</code>, <code>RecordMethod</code> (STOPWATCH / QUICKADD / MANUAL), <code>Dimension</code></td></tr>
+<tr><td><code>core/duration.py</code></td><td><code>parse_duration(&quot;1h15&quot;) → 4500</code>, formatting</td></tr>
+<tr><td><code>core/rounding.py</code></td><td>increment + scope, applied to export rows only</td></tr>
+<tr><td><code>core/anchoring.py</code></td><td>start/end anchors for Add Time entries, arithmetic in UTC</td></tr>
+<tr><td><code>core/labels.py</code></td><td>normalisation, near-duplicate (edit distance ≤ 2, min length 4)</td></tr>
+<tr><td><code>data/schema.py</code>, <code>data/migrations/</code></td><td>DDL pieces, <code>CURRENT_DDL</code>, <code>TARGET_VERSION = 3</code></td></tr>
+<tr><td><code>data/*_repo.py</code></td><td><code>EntryRepo</code> (query / export_rows / summary / overlapping_ids …), <code>LabelRepo</code>, <code>TimerRepo</code>, <code>SettingsRepo</code></td></tr>
+<tr><td><code>services/timer_service.py</code></td><td>the only writer of <code>running_timer</code> and creator of STOPWATCH entries; 30 s heartbeat</td></tr>
+<tr><td><code>services/idle_monitor.py</code>, <code>power_monitor.py</code></td><td>idle/sleep detection → <code>IdleSpan</code></td></tr>
+<tr><td><code>services/entry_service.py</code>, <code>label_service.py</code>, <code>export_service.py</code>, <code>backup_service.py</code>, <code>settings_service.py</code></td><td>one workflow each</td></tr>
+<tr><td><code>platform/</code></td><td><code>IdleProvider</code>, <code>AutostartProvider</code> per OS; <code>factory.py</code> picks; <code>launch_command()</code></td></tr>
+<tr><td><code>ui/tray.py</code>, <code>ui/popover.py</code>, <code>ui/quickadd/</code>, <code>ui/log/</code>, <code>ui/dialogs/</code>, <code>ui/settings_dialog.py</code>, <code>ui/theme.py</code></td><td>widgets</td></tr>
+<tr><td><code>app.py</code></td><td><code>App(QApplication)</code>: bootstrap order, wiring, quit and relaunch</td></tr>
+<tr><td><code>instance_lock.py</code>, <code>crashlog.py</code>, <code>diagnostics.py</code></td><td>single instance, uncaught-exception log, measurement mode</td></tr>
+</tbody></table>
+<p><strong>Invariants the tests enforce</strong> (full list in <code>CLAUDE.md</code>)</p>
+<ul>
+<li><code>core/</code> and <code>data/</code> never import PySide6 or <code>ui/</code> (<code>test_layering.py</code>).</li>
+<li>No network module anywhere, no socket call at boot (<code>test_no_network.py</code>).</li>
+<li>Durations come from the monotonic clock; <code>duration_seconds</code> is authoritative and never recomputed from timestamps.</li>
+<li>Rounding only at export; stored rows never change.</li>
+<li>Every service takes a <code>Clock</code>; tests use <code>FakeClock</code>.</li>
+<li>Migrations applied in sequence equal <code>CURRENT_DDL</code>.</li>
+</ul>
+<p><strong>Test suite layout</strong>: <code>tests/core</code>, <code>tests/data</code>, <code>tests/services</code>, <code>tests/ui</code> mirror the package; top-level files cover cross-cutting requirements — <code>test_layering.py</code>, <code>test_no_network.py</code>, <code>test_instance_lock.py</code>, <code>test_crash_recovery.py</code>, <code>test_log_performance.py</code> (50 000 rows, 200 ms), <code>test_nfr.py</code>, <code>test_first_run.py</code>, <code>test_scenario_s3.py</code>, <code>test_platform_*.py</code>.</p>
+<h2>Verification</h2>
+<p><strong>Verified</strong> by running on this machine (Windows 11, Python 3.13.0, commit <code>614dc2f</code>):</p>
+<ul>
+<li><code>pytest -q</code> → 477 passed, 5 skipped in 27.39 s; <code>ruff check .</code> → All checks passed; <code>mypy</code> → no issues in 23 source files.</li>
+<li><code>pytest tests/core/test_rounding.py -q</code> → 62 passed.</li>
+<li>Layering guard: a file <code>core/_demo_bad.py</code> containing <code>import PySide6</code> makes <code>test_layering.py</code> fail with the message quoted in Troubleshooting; the file was removed afterwards.</li>
+<li>Measurement mode on the source tree and on the installed 1.0.0 exe printed the JSON lines quoted above, exit 0; the data folder contained <code>instance.lock</code>, <code>timetracker.log</code>, <code>timetracker.sqlite3</code>.</li>
+<li>A second <code>timetracker.exe</code> while one runs exits with code 1.</li>
+<li><code>TIMETRACKER_DATA_DIR=Z:/nope</code> produces the <code>FileNotFoundError</code> quoted.</li>
+<li><code>build_release.py --help</code> and <code>build_dev.py --help</code> start builds (they parse no arguments); <code>make_icons.py</code> prints the line quoted and produces a diff in <code>icon-16.png</code>, <code>icon-24.png</code> and <code>icon.ico</code> on a no-change regeneration.</li>
+<li>The Nuitka build, ISCC installer build and silent install were done during M7 (<code>MILESTONES.md</code>); CI run for <code>614dc2f</code> is green on all six jobs.</li>
+<li>Dependency versions from <code>pip</code>: PySide6 6.11.2, openpyxl 3.1.5.</li>
+</ul>
+<p><strong>Assumed</strong> (not executed while writing this):</p>
+<ul>
+<li>The macOS and Linux command forms (<code>.venv/bin/…</code>) and the <code>make_dmg.sh</code> / <code>make_appimage.sh</code> scripts — exercised only by the release workflow.</li>
+<li>The exact <code>pip install</code> output text; only its success was observed.</li>
+<li>The <code>UPDATE_GOLDENS=1</code> run was done during M5, not re-run for this manual.</li>
+</ul>
+<footer>Rendered from Markdown by manual-writing render_html.py. The Markdown source is the authority.</footer>
+</main>
+<script>
+(function(){var r=document.documentElement,b=document.getElementById('tg');
+function cur(){return r.dataset.theme||(matchMedia(
+'(prefers-color-scheme:dark)').matches?'dark':'light')}
+b.onclick=function(){var n=cur()==='dark'?'light':'dark';
+r.dataset.theme=n;b.textContent=n==='dark'?'\u2600 Light':'\u263D Dark'};
+b.textContent=cur()==='dark'?'\u2600 Light':'\u263D Dark'})();
+</script>
+</body>
+</html>

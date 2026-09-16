@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Time Tracker — user manual</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--muted:#666;--border:#e2e2e2;
+--code-bg:#f5f5f5;--pre-bg:#1e1e28;--pre-fg:#e6e6e6;--accent:#2563eb;
+--th-bg:#f0f2f5;--banner:#fff3cd;--banner-fg:#664d03}
+@media (prefers-color-scheme:dark){:root{--bg:#15161a;--fg:#e6e6e6;
+--muted:#9aa0a6;--border:#2c2e36;--code-bg:#23252d;--pre-bg:#0e0f13;
+--pre-fg:#e6e6e6;--accent:#6ea8fe;--th-bg:#20222a;--banner:#332701;
+--banner-fg:#ffe08a}}
+:root[data-theme=dark]{--bg:#15161a;--fg:#e6e6e6;--muted:#9aa0a6;
+--border:#2c2e36;--code-bg:#23252d;--pre-bg:#0e0f13;--pre-fg:#e6e6e6;
+--accent:#6ea8fe;--th-bg:#20222a;--banner:#332701;--banner-fg:#ffe08a}
+:root[data-theme=light]{--bg:#fff;--fg:#1a1a1a;--muted:#666;
+--border:#e2e2e2;--code-bg:#f5f5f5;--pre-bg:#1e1e28;--pre-fg:#e6e6e6;
+--accent:#2563eb;--th-bg:#f0f2f5;--banner:#fff3cd;--banner-fg:#664d03}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+Helvetica,Arial,sans-serif}
+main{max-width:820px;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+h1{font-size:2rem;line-height:1.2;margin:0 0 1rem;
+border-bottom:2px solid var(--border);padding-bottom:.5rem}
+h2{font-size:1.4rem;margin:2.2rem 0 .8rem;border-bottom:1px solid
+var(--border);padding-bottom:.3rem}
+h3{font-size:1.12rem;margin:1.6rem 0 .6rem}
+p{margin:.7rem 0}
+a{color:var(--accent)}
+code{background:var(--code-bg);padding:.12em .35em;border-radius:4px;
+font:.88em/1.5 "SF Mono",Consolas,"Liberation Mono",Menlo,monospace}
+pre{background:var(--pre-bg);color:var(--pre-fg);padding:1rem 1.1rem;
+border-radius:8px;overflow-x:auto;margin:.6rem 0}
+pre code{background:none;padding:0;color:inherit;font-size:.86rem}
+ul,ol{padding-left:1.5rem}
+li{margin:.35rem 0}
+li>pre{margin:.4rem 0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;
+display:block;overflow-x:auto}
+th,td{border:1px solid var(--border);padding:.5rem .7rem;
+text-align:left;vertical-align:top}
+th{background:var(--th-bg)}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--th-bg) 40%,
+transparent)}
+.banner{background:var(--banner);color:var(--banner-fg);
+border:1px solid color-mix(in srgb,var(--banner-fg) 30%,transparent);
+padding:.6rem .9rem;border-radius:8px;margin:0 0 1.5rem;font-size:.92rem}
+.toggle{position:fixed;top:1rem;right:1rem;background:var(--code-bg);
+color:var(--fg);border:1px solid var(--border);border-radius:6px;
+padding:.35rem .6rem;cursor:pointer;font-size:.85rem}
+footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);
+color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<button class="toggle" id="tg">Theme</button>
+<main>
+
+<h1>Time Tracker — user manual</h1>
+<p><em>For Time Tracker 1.0.0 · written 16 September 2026 · Windows screenshots described in words; macOS and Linux differ only where stated.</em></p>
+<h2>Overview</h2>
+<p><strong>Who this is for:</strong> someone who has never used Time Tracker and wants to know where their working hours went — per client, per kind of work — without learning a new tool. No technical knowledge is assumed.</p>
+<p><strong>After reading, you can</strong> record your working time in two ways (a stopwatch and a quick &quot;add 15 minutes&quot; grid), look the entries up, correct them, and hand a spreadsheet of them to whoever needs it.</p>
+<p>Time Tracker has no main window. It lives as a small <strong>clock icon in the system tray</strong> — the row of little icons next to the Windows clock at the bottom right of the screen (top right menu bar on a Mac). Everything starts from that icon:</p>
+<table><thead><tr><th>Do this on the icon</th><th>You get</th></tr></thead><tbody>
+<tr><td><strong>Left-click</strong></td><td>the <em>popover</em>: stopwatch, or the Add Time grid</td></tr>
+<tr><td><strong>Right-click</strong></td><td>a menu: <em>Start</em> / <em>Stop</em>, <em>Add Time…</em>, <em>Open log…</em>, <em>Settings…</em>, <em>Quit</em></td></tr>
+<tr><td><strong>Hover</strong></td><td>a tooltip: what is running, or &quot;Not tracking&quot;</td></tr>
+</tbody></table>
+<p>Your time is stored in one file on your own computer. The app never connects to the internet and never sends anything anywhere.</p>
+<h2>Prerequisites</h2>
+<ul>
+<li>Windows 10 or 11, macOS 13 or newer, or a Linux desktop with a system tray (KDE, XFCE and LXQt work directly; GNOME needs the <em>AppIndicator</em> extension).</li>
+<li>The installer or archive from the project&#x27;s <em>Releases</em> page: <code>TimeTracker-1.0.0-setup.exe</code> (Windows, 24 MB), <code>TimeTracker-1.0.0.dmg</code> (macOS) or <code>TimeTracker-1.0.0-x86_64.AppImage</code> (Linux).</li>
+<li>No administrator rights: the Windows installer installs for your user only, into <code>C:\Users\&lt;you&gt;\AppData\Local\Programs\Time Tracker</code>.</li>
+</ul>
+<p>Because the app is not code-signed, Windows shows a blue <em>Windows protected your PC</em> box the first time. Click <strong>More info</strong>, then <strong>Run anyway</strong>. On a Mac, right-click the app and choose <strong>Open</strong> the first time.</p>
+<h2>Step by step: your first entry</h2>
+<p>Timed on a fresh installation: 20 seconds from the welcome screen to the first saved entry.</p>
+<ol>
+<li><strong>Install.</strong> Double-click <code>TimeTracker-1.0.0-setup.exe</code>, click <em>Next</em> through the wizard. Two boxes are worth ticking: <em>Create a Desktop shortcut</em> and <em>Start Time Tracker when I log in</em>. Leave <em>Launch Time Tracker</em> ticked on the last page and click <em>Finish</em>.</li>
+<li><strong>Welcome screen.</strong> A window titled <em>Welcome to Time Tracker</em> asks for your clients, one per line. Type the two or three you bill most; you can add more later, and a client typed anywhere in the app is remembered. Below is a box <em>Start Time Tracker when I log in</em> — leave it ticked if you want the clock icon there every morning. Click <strong>Get started</strong>.</li>
+<li><strong>The popover opens by itself.</strong> It shows a big <code>0:00:00</code>, two drop-downs (client and category), a <strong>Start</strong> button and an <strong>Add Time…</strong> button. The categories are already filled in: <em>Email/Chat</em>, <em>Phone</em>, <em>Meeting/Call</em>, <em>Work</em>.</li>
+<li><strong>Record time with the stopwatch.</strong> Pick a client and a category, click <strong>Start</strong>. The popover closes; the clock icon changes to show it is running, and hovering it tells you what is running. When you are done, left-click the icon and click <strong>Stop</strong>. That is one entry saved.</li>
+<li><strong>Or record time you already spent.</strong> Click <strong>Add Time…</strong>. A grid with four columns appears: <em>Time</em>, <em>Category</em>, <em>Client</em>, <em>Note</em>.
+<ul>
+<li>Click <code>+15min</code> twice: the header now reads <code>0:30</code>. Time chips <strong>add up</strong>.</li>
+<li>Click one category and one client (exactly one of each stays selected).</li>
+<li>Optionally type a note.</li>
+<li>Click <strong>Add</strong>. A small message confirms what was logged, with an <strong>Undo</strong> button that stays for ten seconds. The total resets to <code>0:00</code>; the client and category stay selected, so the next block is two clicks.</li>
+</ul></li>
+<li><strong>Look at what you have.</strong> Right-click the icon → <strong>Open log…</strong> (or the <em>Open log</em> link at the bottom of the popover). Each entry is one line: date, start, end, total, client, type, how it was recorded, note. The status line at the bottom shows <em>Total h:mm</em>, then the totals per client and per type for whatever the filters show.</li>
+</ol>
+<p>Expected after step 6: two lines in the log for today, one with method <em>Start-Stop</em> and one with <em>Add Time</em>, and a <em>Total</em> equal to their sum.</p>
+<h2>Common tasks</h2>
+<h3>Add Time faster</h3>
+<ul>
+<li><strong>Clear the total</strong> with the <strong>Clear</strong> button in the footer; <strong>subtract</strong> a chip by holding <strong>Shift</strong> while clicking it.</li>
+<li><strong>Custom…</strong> at the bottom of the <em>Time</em> column accepts anything like <code>45</code>, <code>1:30</code>, <code>1h15</code> or <code>2h</code> (<code>45</code> means 45 minutes). <em>Custom…</em> under <em>Category</em> and <em>Client</em> creates a new label on the spot — it becomes a chip next time.</li>
+<li><strong>Keyboard only</strong>, once the grid has focus: <code>1</code>–<code>5</code> press the time chips (<code>Shift</code>+digit subtracts), <code>Q W E R T</code> pick a category, <code>A S D F G</code> pick a client, <code>Tab</code> jumps to the note, <code>Enter</code> adds, <code>Ctrl+Z</code> undoes the last add, <code>Esc</code> closes the popover and keeps the total you had.</li>
+<li>The app remembers which page you used last, so the grid is one left-click away tomorrow.</li>
+<li>If you type a client that nearly matches an existing one (for example <code>Niek</code> when <code>Nike</code> exists), the app offers the existing one instead of creating a near-duplicate.</li>
+</ul>
+<h3>When you step away</h3>
+<p>If a timer is running and you do not touch the keyboard or mouse for 10 minutes (changeable in <em>Settings › Timer</em>), or the computer sleeps or is locked, the app asks what to do with the away time when you come back:</p>
+<table><thead><tr><th>Button</th><th>Effect</th></tr></thead><tbody>
+<tr><td><strong>Keep it</strong></td><td>the away time stays in the running entry</td></tr>
+<tr><td><strong>Discard it</strong></td><td>the away time is removed; the timer keeps running from now</td></tr>
+<tr><td><strong>Discard and stop</strong></td><td>the entry ends at the moment you went away</td></tr>
+<tr><td><strong>Log it separately</strong></td><td>the timer stops at the moment you went away and the away time becomes its own entry, same client and category, note <code>Idle</code> — handy when the &quot;idle&quot; time was a meeting</td></tr>
+</tbody></table>
+<p>You do not have to answer straight away: the timer keeps running, the icon shows a small attention mark, and a left-click brings the question back.</p>
+<p>A timer that runs for 12 hours (changeable) raises a second question: <strong>Keep running</strong> or <strong>Stop now</strong>.</p>
+<h3>Fix a mistake in the log</h3>
+<ul>
+<li><strong>Change a value:</strong> double-click the cell (date, start, end, total, client, type, note) and type. Changing the <em>Total</em> keeps the start and moves the end. An edited line shows ✎ in the first column; the method column never changes.</li>
+<li><strong>Delete:</strong> select the line, press <strong>Delete</strong> (toolbar or key). <strong>Undo delete</strong> in the toolbar brings it back, as long as the log window stays open. Deleting several lines at once asks for confirmation.</li>
+<li><strong>Add an entry by hand:</strong> toolbar <strong>Add entry…</strong>: date, start, duration (<code>1:30</code>, <code>1h15</code>, <code>45</code>), client, type, note. It is stored with method <em>Manual</em>, so you can tell it apart later.</li>
+<li><strong>Two entries at the same time</strong> (for example a forgotten stopwatch plus an Add Time block) are marked ⧉ in the first column. Nothing is blocked — you decide which to shorten.</li>
+</ul>
+<h3>Find entries</h3>
+<p>The log&#x27;s top bar: a date preset (<em>Today</em>, <em>This week</em>, <em>Last week</em>, <em>This month</em>, <em>Last month</em>, <em>All time</em>, <em>Custom range</em>) next to two date fields you can edit directly — editing one switches the preset to <em>Custom range</em> — then client, type and method drop-downs and a <strong>Search notes…</strong> field. Click a column header to sort by it.</p>
+<h3>Get a spreadsheet</h3>
+<p>In the log, set the filters to what you want to hand over (for example <em>Last month</em> and one client), click <strong>Export</strong> → <strong>Excel (XLSX)…</strong> or <strong>CSV…</strong>.</p>
+<p>The export dialog offers <strong>rounding</strong>: none, 6, 10, 15 or 30 minutes, always rounded <em>up</em>, and a <strong>scope</strong>: <em>per entry</em> (each line rounded) or <em>per day × client × type</em> (the day&#x27;s lines for one client and category are added first, then rounded once — three 2-minute emails become one 6-minute block, not three). The stored entries are never changed; only the file is. The file says which rounding was used (last lines of the CSV, an <em>Export info</em> sheet in the XLSX).</p>
+<p>The Excel file has real durations you can sum, a frozen header row, and a total row.</p>
+<h3>Quit, and what happens to a running timer</h3>
+<p>Right-click → <strong>Quit</strong> while a timer runs asks: <strong>Stop and save</strong>, <strong>Keep running</strong> (cancels the quit) or <strong>Discard</strong>. If the computer crashes or loses power, the next launch offers <strong>Recover entry</strong> — at most 30 seconds are lost.</p>
+<h3>Settings</h3>
+<p>Right-click → <strong>Settings…</strong>. Five tabs:</p>
+<table><thead><tr><th>Tab</th><th>What is there</th></tr></thead><tbody>
+<tr><td><strong>General</strong></td><td><em>Start Time Tracker when I log in</em>; theme (system / light / dark); first day of the week; 12 h / 24 h clock</td></tr>
+<tr><td><strong>Timer</strong></td><td>idle threshold in minutes (0 = off); long-running warning in hours (0 = off). Sleep and lock are always detected.</td></tr>
+<tr><td><strong>Export</strong></td><td>default rounding and scope; CSV separator; export folder</td></tr>
+<tr><td><strong>Labels</strong></td><td>rename, archive (hide from the chips, keep in history) or delete a client or category; delete works only when no entry uses it</td></tr>
+<tr><td><strong>Data</strong></td><td><em>Reveal data folder</em>, <em>Open log file</em>, <strong>Back up now</strong>, <strong>Restore from backup…</strong>, <strong>Export all data…</strong> (every entry and label as CSV and JSON)</td></tr>
+</tbody></table>
+<p>Restoring from a backup restarts the app; a snapshot of the current data is taken first, so nothing is lost by trying.</p>
+<h2>Troubleshooting</h2>
+<table><thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead><tbody>
+<tr><td>Blue <em>Windows protected your PC</em> screen when running the installer</td><td>The app is not code-signed</td><td>Click <em>More info</em> → <em>Run anyway</em></td></tr>
+<tr><td>Nothing visible after launch</td><td>The icon is in the tray overflow</td><td>Click the <code>^</code> arrow left of the Windows clock; drag the clock icon onto the taskbar to keep it visible. On GNOME, install the AppIndicator extension.</td></tr>
+<tr><td>Launching it again does nothing new</td><td>Only one copy runs at a time; the second one just pops the first one&#x27;s popover open and exits (exit code 1, no message)</td><td>Look for the popover near the tray</td></tr>
+<tr><td><strong>Add</strong> stays greyed out in the grid</td><td>The total is <code>0:00</code>, or no client / category is selected — both are required by default</td><td>Click a time chip and one chip in each column; <em>Settings › Timer › Add Time requires</em> relaxes this</td></tr>
+<tr><td>Typed <code>abc</code> in Custom… or the Add entry duration and nothing happened</td><td>The field only accepts durations: <code>45</code>, <code>1:30</code>, <code>1h15</code>, <code>2h</code></td><td>Type one of those forms</td></tr>
+<tr><td>The stopwatch total in the popover is bigger than the wall-clock difference</td><td>You kept away time, or the laptop slept and you chose <em>Keep it</em></td><td>Edit the <em>Total</em> in the log if that was not intended</td></tr>
+<tr><td>An entry has a ⚠ mark in the log</td><td>After editing, end − start no longer matches the total by two minutes or more</td><td>It is only a marker; fix the start, end or total</td></tr>
+<tr><td>The tray icon shows a small mark and clicking it opens a question, not the popover</td><td>An idle prompt is waiting</td><td>Answer it; the popover comes back</td></tr>
+<tr><td><em>Restore from backup…</em> refuses a file</td><td>It is not a SQLite file, fails SQLite&#x27;s integrity check, is not a Time Tracker database, or comes from a newer version</td><td>Pick a file made by <em>Back up now</em> or <em>Export all data…</em> of this or an older version</td></tr>
+<tr><td>Windows Task Manager › Startup apps shows <em>Time Tracker</em> with a strange short path (<code>TIMETR~1</code>)</td><td>Cosmetic; Windows resolves it</td><td>Nothing to do</td></tr>
+</tbody></table>
+<p>The app writes uncaught errors to <code>timetracker.log</code> in the data folder (<em>Settings › Data › Open log file</em>).</p>
+<h2>Reference</h2>
+<p><strong>Where your data is.</strong> One file, <code>timetracker.sqlite3</code>, in:</p>
+<table><thead><tr><th>OS</th><th>Folder</th></tr></thead><tbody>
+<tr><td>Windows</td><td><code>C:\Users\&lt;you&gt;\AppData\Local\TimeTracker</code></td></tr>
+<tr><td>macOS</td><td><code>~/Library/Application Support/TimeTracker</code></td></tr>
+<tr><td>Linux</td><td><code>~/.local/share/timetracker</code></td></tr>
+</tbody></table>
+<p>Back it up with <em>Settings › Data › Back up now</em> (timestamped copy next to it). Do not put the folder on OneDrive or Dropbox: two machines writing the same file corrupts it. Uninstalling the app leaves the folder in place.</p>
+<p><strong>Duration forms accepted everywhere:</strong> <code>45</code> (minutes), <code>1:30</code>, <code>1h15</code>, <code>2h</code>, <code>0:05</code>.</p>
+<p><strong>Tray menu:</strong> Start / Stop · Add Time… · Open log… · Settings… · Quit.</p>
+<p><strong>Popover, stopwatch page (380 px wide):</strong> elapsed time, client, category, Start/Stop, Add Time…, <em>Open log</em>, <em>Settings</em>. <strong>Popover, Add Time page (640 px wide):</strong> ‹ Timer, pending total, <code>+6min +15min +30min +45min Custom…</code>, category chips + Custom…, client chips + Custom…, note; footer with today&#x27;s total, <strong>Clear</strong>, <strong>Add</strong>.</p>
+<p><strong>Log columns:</strong> (flags) · Date · Start · End · Total · Client · Type · Method · Note. Methods: <em>Start-Stop</em>, <em>Add Time</em>, <em>Manual</em>.</p>
+<p><strong>Export columns:</strong> Date, Start, End, Duration (decimal hours), Duration (h:mm), Client, Type, Record method, Note — then, in CSV, footer lines <em>Exported</em>, <em>Application</em> and the rounding used.</p>
+<p><strong>Defaults:</strong> idle threshold 10 min; long-running warning 12 h; client and category required in Add Time; rounding none, scope per day × client × type; theme system; week starts Monday; 24 h clock.</p>
+<p><strong>Keyboard in the Add Time grid:</strong> <code>1–5</code> time chips (<code>Shift</code> subtracts), <code>Q W E R T</code> category, <code>A S D F G</code> client, <code>Tab</code> note, <code>Enter</code> add, <code>Ctrl+Z</code> undo, <code>Esc</code> close.</p>
+<p><strong>Uninstall (Windows):</strong> <em>Settings › Apps › Installed apps › Time Tracker › Uninstall</em>, or <code>Uninstall Time Tracker</code> in the Start Menu. Your data folder stays.</p>
+<h2>Verification</h2>
+<p><strong>Verified</strong> on this PC (Windows 11, Time Tracker 1.0.0 installed from <code>TimeTracker-1.0.0-setup.exe</code>):</p>
+<ul>
+<li>Installer runs without an administrator prompt; files land in <code>%LOCALAPPDATA%\Programs\Time Tracker</code>; Start Menu entry and uninstaller present; the <em>Create a Desktop shortcut</em> and <em>Start … when I log in</em> options exist in the wizard.</li>
+<li>First run with an empty data folder: welcome screen → clients → <em>Get started</em> → popover opened by itself → first entry in 20 seconds.</li>
+<li>Start/Stop, Add Time (<code>+15min</code> twice = <code>0:30</code>), Undo toast, log window with editing, deletion and undo, <em>Add entry…</em>, overlap marker, XLSX and CSV export with rounding, idle prompt with the four buttons, quit prompt with three buttons, recovery after a killed process, settings tabs and their controls, backup and restore with relaunch — all exercised during the milestone acceptance runs (M2–M7) recorded in <code>MILESTONES.md</code>.</li>
+<li>Second launch while running exits with code 1 and raises the first instance&#x27;s popover.</li>
+<li>Duration forms: <code>1:30</code>→1 h 30, <code>1h15</code>→1 h 15, <code>45</code>→45 min, <code>2h</code>, <code>0:05</code> accepted; <code>abc</code> and empty rejected.</li>
+<li>Data folder contents after first run: <code>timetracker.sqlite3</code>, <code>timetracker.log</code>, <code>instance.lock</code>.</li>
+</ul>
+<p><strong>Assumed</strong> (not checked by hand):</p>
+<ul>
+<li>macOS and Linux behaviour: the DMG/AppImage are built and smoke-tested by the release workflow only; the tray, idle and autostart code paths for those systems are covered by unit tests, not by a person.</li>
+<li>The SmartScreen wording <em>Windows protected your PC</em> is Microsoft&#x27;s standard text for unsigned executables; this installer was not downloaded through a browser here, so the exact screen was not seen.</li>
+</ul>
+<footer>Rendered from Markdown by manual-writing render_html.py. The Markdown source is the authority.</footer>
+</main>
+<script>
+(function(){var r=document.documentElement,b=document.getElementById('tg');
+function cur(){return r.dataset.theme||(matchMedia(
+'(prefers-color-scheme:dark)').matches?'dark':'light')}
+b.onclick=function(){var n=cur()==='dark'?'light':'dark';
+r.dataset.theme=n;b.textContent=n==='dark'?'\u2600 Light':'\u263D Dark'};
+b.textContent=cur()==='dark'?'\u2600 Light':'\u263D Dark'})();
+</script>
+</body>
+</html>

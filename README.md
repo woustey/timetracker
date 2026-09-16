@@ -10,6 +10,8 @@ network, no telemetry.
 - Technical design and milestones: [`docs/PRD-time-tracker-qt.md`](docs/PRD-time-tracker-qt.md)
 - What was built, milestone by milestone: [`docs/MILESTONES.md`](docs/MILESTONES.md)
 - Your data, explained: [`docs/DATA-FORMAT.md`](docs/DATA-FORMAT.md)
+- Manuals: [user](docs/USER-MANUAL.md) · [developer](docs/DEVELOPER-MANUAL.md) · [product owner](docs/PRODUCT-OWNER-MANUAL.md) — each also as a
+  self-contained `.html` next to it (open it in any browser, no network needed)
 
 ## Install
 

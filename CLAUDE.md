@@ -142,7 +142,10 @@ Tray-resident time tracker. Product requirements: `docs/PRD-time-tracker.md`
   login — then the popover opens itself. `app.autostart_offered` records it.
 - Docs to keep current when behaviour changes: `README.md`,
   `docs/DATA-FORMAT.md` (NFR-10), `docs/RELEASE-CHECKLIST.md`,
-  `docs/RELEASE-NOTES.md`, `docs/MILESTONES.md` (the build history).
+  `docs/RELEASE-NOTES.md`, `docs/MILESTONES.md` (the build history), and the
+  three manuals `docs/USER-MANUAL.md`, `docs/DEVELOPER-MANUAL.md`,
+  `docs/PRODUCT-OWNER-MANUAL.md` (each ends with a Verified/Assumed list —
+  keep it truthful).
 
 ## Launching on Windows
 

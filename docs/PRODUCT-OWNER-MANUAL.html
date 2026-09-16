@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Time Tracker — product owner manual</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--muted:#666;--border:#e2e2e2;
+--code-bg:#f5f5f5;--pre-bg:#1e1e28;--pre-fg:#e6e6e6;--accent:#2563eb;
+--th-bg:#f0f2f5;--banner:#fff3cd;--banner-fg:#664d03}
+@media (prefers-color-scheme:dark){:root{--bg:#15161a;--fg:#e6e6e6;
+--muted:#9aa0a6;--border:#2c2e36;--code-bg:#23252d;--pre-bg:#0e0f13;
+--pre-fg:#e6e6e6;--accent:#6ea8fe;--th-bg:#20222a;--banner:#332701;
+--banner-fg:#ffe08a}}
+:root[data-theme=dark]{--bg:#15161a;--fg:#e6e6e6;--muted:#9aa0a6;
+--border:#2c2e36;--code-bg:#23252d;--pre-bg:#0e0f13;--pre-fg:#e6e6e6;
+--accent:#6ea8fe;--th-bg:#20222a;--banner:#332701;--banner-fg:#ffe08a}
+:root[data-theme=light]{--bg:#fff;--fg:#1a1a1a;--muted:#666;
+--border:#e2e2e2;--code-bg:#f5f5f5;--pre-bg:#1e1e28;--pre-fg:#e6e6e6;
+--accent:#2563eb;--th-bg:#f0f2f5;--banner:#fff3cd;--banner-fg:#664d03}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+Helvetica,Arial,sans-serif}
+main{max-width:820px;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+h1{font-size:2rem;line-height:1.2;margin:0 0 1rem;
+border-bottom:2px solid var(--border);padding-bottom:.5rem}
+h2{font-size:1.4rem;margin:2.2rem 0 .8rem;border-bottom:1px solid
+var(--border);padding-bottom:.3rem}
+h3{font-size:1.12rem;margin:1.6rem 0 .6rem}
+p{margin:.7rem 0}
+a{color:var(--accent)}
+code{background:var(--code-bg);padding:.12em .35em;border-radius:4px;
+font:.88em/1.5 "SF Mono",Consolas,"Liberation Mono",Menlo,monospace}
+pre{background:var(--pre-bg);color:var(--pre-fg);padding:1rem 1.1rem;
+border-radius:8px;overflow-x:auto;margin:.6rem 0}
+pre code{background:none;padding:0;color:inherit;font-size:.86rem}
+ul,ol{padding-left:1.5rem}
+li{margin:.35rem 0}
+li>pre{margin:.4rem 0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;
+display:block;overflow-x:auto}
+th,td{border:1px solid var(--border);padding:.5rem .7rem;
+text-align:left;vertical-align:top}
+th{background:var(--th-bg)}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--th-bg) 40%,
+transparent)}
+.banner{background:var(--banner);color:var(--banner-fg);
+border:1px solid color-mix(in srgb,var(--banner-fg) 30%,transparent);
+padding:.6rem .9rem;border-radius:8px;margin:0 0 1.5rem;font-size:.92rem}
+.toggle{position:fixed;top:1rem;right:1rem;background:var(--code-bg);
+color:var(--fg);border:1px solid var(--border);border-radius:6px;
+padding:.35rem .6rem;cursor:pointer;font-size:.85rem}
+footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);
+color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<button class="toggle" id="tg">Theme</button>
+<main>
+
+<h1>Time Tracker — product owner manual</h1>
+<p><em>For release 1.0.0 (tag <code>v1.0.0</code>, 16 September 2026) · written 16 September 2026.</em></p>
+<h2>Overview</h2>
+<p><strong>Who this is for:</strong> the person who owns the product — decides what gets built, accepts a release, and answers &quot;does it do X?&quot; — without reading code.</p>
+<p><strong>After reading, you can</strong> say what 1.0.0 does and does not do against the requirements you wrote, verify a release yourself in an hour, read the success metrics out of the data, and steer the next release: which backlog items exist, what a change costs, and which decisions are already settled.</p>
+<p>The product is defined by two documents, both in this folder:</p>
+<table><thead><tr><th>Document</th><th>Role</th></tr></thead><tbody>
+<tr><td><a href="PRD-time-tracker.md"><code>PRD-time-tracker.md</code></a> (PRD-01)</td><td><em>what</em>: goals, personas, functional requirements <code>FR-nnn</code> with priority M / S / C, non-functional <code>NFR-nn</code>, success metrics §13, open questions §15</td></tr>
+<tr><td><a href="PRD-time-tracker-qt.md"><code>PRD-time-tracker-qt.md</code></a> (PRD-02)</td><td><em>how</em>: architecture, test plan §11, milestones M0–M7 with acceptance criteria §13</td></tr>
+</tbody></table>
+<p>Everything else is derived: <a href="MILESTONES.md"><code>MILESTONES.md</code></a> records what each milestone delivered and what was measured; <a href="RELEASE-NOTES.md"><code>RELEASE-NOTES.md</code></a> is the customer-facing summary; <a href="RELEASE-CHECKLIST.md"><code>RELEASE-CHECKLIST.md</code></a> is the manual acceptance script; <a href="../CLAUDE.md"><code>../CLAUDE.md</code></a> lists the decisions taken with you during the build — the ones not to re-open by accident.</p>
+<h2>Prerequisites</h2>
+<ul>
+<li>Read access to the GitHub repository <code>woustey/timetracker</code> (public): the <em>Releases</em> page holds the binaries, <em>Actions</em> the build and test runs.</li>
+<li>A Windows 10/11 PC for hands-on acceptance (no admin rights needed), or Windows Sandbox enabled for a true fresh-machine run.</li>
+<li>For the metrics queries: the <code>sqlite3</code> command-line shell or any SQLite browser, plus the path of your data file (<code>%LOCALAPPDATA%\TimeTracker\timetracker.sqlite3</code> on Windows).</li>
+<li>No developer tooling is required for anything in this manual.</li>
+</ul>
+<h2>Step by step: accept a release</h2>
+<p>This is the M7 acceptance as performed for 1.0.0, in the order that finds problems fastest.</p>
+<ol>
+<li><strong>Check the automated gate.</strong> <em>GitHub › Actions › CI</em>: the latest run on <code>main</code> must be green on all six jobs (Ubuntu, Windows, macOS × Python 3.12 and 3.13). For 1.0.0 that is commit <code>614dc2f</code>. Green means: 477 automated tests pass, including the ones that enforce your non-negotiables — no network code (NFR-05), no rounding of stored data (FR-605), durations from a monotonic clock (FR-208), the log stays under 200 ms with 50 000 entries (NFR-04).</li>
+<li><strong>Check the release build.</strong> <em>Actions › Release</em> for the tag: four artefacts — Windows installer + portable zip, macOS DMG, Linux AppImage + tar.gz — each smoke-tested by booting the compiled binary in measurement mode. The GitHub Release page carries the release notes and the files.</li>
+<li><strong>Install as a new user.</strong> Run <code>TimeTracker-&lt;version&gt;-setup.exe</code> in Windows Sandbox (<code>installer\sandbox-test.wsb</code> in the repository maps the installer folder into it and switches networking off), or on your PC with a scratch data folder. No administrator prompt may appear.</li>
+<li><strong>Time the first entry (NFR-09).</strong> Start a stopwatch when the welcome screen appears, type a client, <em>Get started</em>, record one entry. Target under 60 s. Measured for 1.0.0: <strong>20 s</strong>.</li>
+<li><strong>Walk <code>RELEASE-CHECKLIST.md</code>.</strong> Sections 1–7 cover tray states, popover placement, the matrix, idle prompt after a sleep, log editing and export, settings, backup/restore. Each line is a tick box; about an hour.</li>
+<li><strong>Read the numbers.</strong> The build prints them itself; the developer can run <code>TIMETRACKER_MEASURE_BOOT=5</code> on any binary. For the installed 1.0.0 build:
+<pre><code>{&quot;boot_seconds&quot;: 1.03, &quot;idle_cpu_seconds&quot;: 0.0156, &quot;idle_wall_seconds&quot;: 3.005, &quot;idle_cpu_percent&quot;: 0.52, &quot;rss_mb&quot;: 96.0}</code></pre>
+<p>Against NFR-01 (≤ 2 s) and NFR-03 (≤ 150 MB) that passes. The idle CPU figure over 3 s includes the tail of start-up; over 20 s it measured 0 ticks (<code>MILESTONES.md</code>, M6).</p></li>
+<li><strong>Decide.</strong> Green CI + checklist without blockers + NFR numbers inside budget = accept. The developer then tags; the tag builds and publishes.</li>
+</ol>
+<p>Expected outcome for 1.0.0: all seven steps passed on 15–16 September 2026, with two caveats recorded in <em>Verification</em> below.</p>
+<h2>Common tasks</h2>
+<h3>Answer &quot;does 1.0.0 do X?&quot; — requirements coverage</h3>
+<p>Every <strong>M</strong> requirement in PRD-01 is implemented; every <strong>S</strong> and <strong>C</strong> is not, by the rule agreed at the start, with three exceptions you opted into.</p>
+<table><thead><tr><th>Area (PRD-01 §8)</th><th>Implemented (M)</th><th>Not in 1.0.0 (S / C)</th></tr></thead><tbody>
+<tr><td>Shell &amp; tray (FR-101–111)</td><td>tray-only app, popover, context menu, three icon states, tooltip, single instance, start at login, no-tray fallback, quit prompt</td><td>FR-106 elapsed time as tray text (macOS), FR-109 global hotkeys</td></tr>
+<tr><td>Start–Stop (FR-201–214)</td><td>one-click start, sticky labels, one timer at a time, monotonic timing, 30 s heartbeat + crash recovery, idle prompt with four outcomes, sleep/lock handling, long-running prompt</td><td>FR-205 stop sheet, FR-212 pause/resume, FR-213 continue, FR-214 minimum-duration confirmation</td></tr>
+<tr><td>Add Time matrix (FR-301–318)</td><td>four columns, additive chips, Custom duration, clear/subtract, single-select labels, note, Add gated on mandatory labels, toast + undo, sticky labels, full keyboard</td><td>FR-313 express mode, FR-316 date stepper, FR-317 day total in header, FR-318 configurable chips</td></tr>
+<tr><td>Labels (FR-401–409)</td><td>custom values persist, case/whitespace normalisation, near-duplicate offer, rename, archive, seed types + first-run client prompt</td><td>FR-406 merge, FR-407 pin, FR-408 colour</td></tr>
+<tr><td>Log (FR-501–510)</td><td>every entry, sortable columns, presets + custom range, client/type/method/search filters, totals, inline edit with edited flag, delete + undo, <strong>FR-508 overlap flags (opted in)</strong></td><td>FR-507 split/merge, FR-509 day timeline, FR-510 weekly grid</td></tr>
+<tr><td>Export (FR-601–609)</td><td>CSV (BOM, RFC 4180, delimiter setting), XLSX (real durations, frozen header, totals), fixed columns, rounding 6/10/15/30 up, never mutates data, scope per entry / per group</td><td>FR-607 aggregated export, FR-608 presets, FR-609 PDF</td></tr>
+<tr><td>Settings (FR-701–703)</td><td>start at login, idle threshold, mandatory labels, rounding, delimiter, export folder, theme, first weekday, 12/24 h; stored in the database</td><td>FR-702 reminders; the stop-confirmation and minimum-duration settings (their features are S)</td></tr>
+<tr><td>Data (FR-801–806)</td><td>one documented file + settings inside it, backup and validated restore, full export CSV + JSON, versioned automatic migrations with pre-migration copy</td><td>FR-803 rolling backups, FR-805 CSV import</td></tr>
+</tbody></table>
+<p>Opted-in extras beyond M: overlap flags (FR-508), an <strong>Add entry…</strong> form in the log, and a third record method <strong>Manual</strong> so hand-added entries are distinguishable from stopwatch and matrix entries (this needed schema version 3 — a decision recorded in <code>CLAUDE.md</code>).</p>
+<p>Non-functional, all measured: NFR-01 boot 1.03 s installed / 0.89 s from source; NFR-02 popover and commit latency tested; NFR-03 96 MB RSS installed; NFR-04 50 000-entry log under 200 ms in the test; NFR-05/06 enforced by a test and by having no network module in the code; NFR-07 heartbeat every 30 s with recovery test; NFR-08 three platforms built by CI; NFR-09 20 s; NFR-10 <code>DATA-FORMAT.md</code>.</p>
+<h3>Read the success metrics (PRD-01 §13)</h3>
+<p>Four of the six metrics come out of the data file. Open it read-only with any SQLite tool. Run against the owner&#x27;s own database on 16 September 2026:</p>
+<pre><code>sqlite&gt; SELECT record_method, COUNT(*), ROUND(SUM(duration_seconds)/3600.0,2) FROM entry GROUP BY 1;
+[(&#x27;MANUAL&#x27;, 1, 0.03), (&#x27;QUICKADD&#x27;, 13, 18.4), (&#x27;STOPWATCH&#x27;, 3, 0.11)]</code></pre>
+<table><thead><tr><th>Metric</th><th>Target</th><th>How to read it</th></tr></thead><tbody>
+<tr><td>Share of entries via Add Time</td><td>&gt; 40 %</td><td><code>QUICKADD</code> count ÷ total count from the query above — 13 of 17 = 76 % in the sample</td></tr>
+<tr><td>Share of workdays with ≥ 1 entry</td><td>&gt; 90 % after four weeks</td><td><code>SELECT COUNT(DISTINCT local_date) FROM entry WHERE local_date &gt;= date(&#x27;now&#x27;,&#x27;-28 days&#x27;)</code> ÷ workdays in the window</td></tr>
+<tr><td>Clicks to log a retroactive entry</td><td>≤ 4 incl. opening the tray</td><td>measured 3 in steady state (the app remembers the last popover page); 6 on the very first use before that was fixed in M3</td></tr>
+<tr><td>Time to log a retroactive entry</td><td>&lt; 5 s</td><td>the matrix commit path is timed in <code>test_nfr.py</code> (<code>test_nfr02_popover_open_and_commit_latency</code>); scenario S3 end-to-end is <code>test_scenario_s3.py</code>; the wall-clock 5 s is a stopwatch check on the release checklist</td></tr>
+<tr><td>Crash-loss incidents</td><td>0</td><td>look for <code>timetracker-pre-v*.sqlite3</code> and recovery prompts; any loss &gt; 30 s is a bug</td></tr>
+<tr><td>Hours captured that were previously lost</td><td>&gt; 3 h/week</td><td>self-report; the <code>QUICKADD</code> hours per week above are the proxy</td></tr>
+</tbody></table>
+<p><code>v_session_log</code> is the friendly view for ad-hoc questions (labels joined, method spelled out); <code>DATA-FORMAT.md</code> documents every table.</p>
+<h3>Ask for a change</h3>
+<ul>
+<li><strong>A new setting, chip, column or dialog wording</strong>: a small change; the developer manual has recipes. Ask for the test that proves it.</li>
+<li><strong>A new S/C feature from the backlog</strong>: state the PRD id; PRD-01 already describes the behaviour, so the request is &quot;implement FR-nnn&quot;. Expect the developer to raise the open questions in PRD-01 §15 that touch it.</li>
+<li><strong>Anything that changes stored data</strong> (a new column, a new record method): a schema version bump with a migration and a documentation update — half a day, plus the release checklist&#x27;s migration step.</li>
+<li><strong>Anything with a network, an account, AI or telemetry</strong>: out of scope by NFR-05/06 and the project rules; a test will fail. This is a product decision to revisit, not a ticket.</li>
+<li><strong>A fifth runtime dependency</strong>: the developer must ask you; say no unless it replaces code you would otherwise pay to maintain.</li>
+</ul>
+<h3>Prioritise the 1.1 backlog</h3>
+<p>PRD-01 §14 names v1.1 as: pause/resume (FR-212), day timeline (FR-509), weekly grid (FR-510), export presets (FR-608), CSV import (FR-805), reminders (FR-702). Everything marked S or C in the coverage table is eligible. Two items came out of 1.0 acceptance and are cheap:</p>
+<ul>
+<li>Code signing (Windows Authenticode, Apple notarisation): removes the <em>Windows protected your PC</em> and Gatekeeper warnings. Needs a purchased certificate; <code>RELEASE-CHECKLIST.md</code> §8 lists what to buy.</li>
+<li>The Windows silent install does not add a Desktop shortcut unless asked (<code>/TASKS=desktopicon</code>); the wizard does. Documentation-only fix.</li>
+</ul>
+<h3>Decisions already taken</h3>
+<p><code>CLAUDE.md</code> › <em>Decisions taken (with the owner)</em> is the register. The ones that most often come up again:</p>
+<table><thead><tr><th>Decision</th><th>Consequence</th></tr></thead><tbody>
+<tr><td>Q1: an entry may be saved without client/type; &quot;mandatory labels&quot; gates only the matrix&#x27;s Add button</td><td>the stopwatch never blocks; the log can show blank labels</td></tr>
+<tr><td>Quit with a running timer: <em>Keep running</em> cancels the quit</td><td>nothing is lost silently</td></tr>
+<tr><td>Single instance via a file lock, not a local socket</td><td>NFR-05 stays verifiable</td></tr>
+<tr><td>Popover remembers its last page</td><td>the ≤ 4-click metric holds</td></tr>
+<tr><td>Rounding lives only in exports; the file states the rounding used</td><td>stored minutes are always the truth</td></tr>
+<tr><td>Three record methods (Manual added)</td><td>schema v3; exports show <em>Manual</em></td></tr>
+<tr><td>Log filtering in SQL, not in the UI layer</td><td>50 000 entries stay under 200 ms</td></tr>
+<tr><td>Restore relaunches the app</td><td>SQLite cannot swap a file under an open connection</td></tr>
+<tr><td>Binaries unsigned in 1.0</td><td>one-time warning on first launch, documented</td></tr>
+</tbody></table>
+<h2>Troubleshooting</h2>
+<table><thead><tr><th>Symptom</th><th>Cause</th><th>What to do</th></tr></thead><tbody>
+<tr><td>CI badge red on <code>main</code></td><td>a test, lint or type check failed on one of the six jobs</td><td>open the run; the failing test name carries the requirement id (<code>test_fr605_…</code>). Do not accept a release from a red commit</td></tr>
+<tr><td>Release workflow ran but a platform&#x27;s artefact is missing</td><td>that platform&#x27;s build or smoke test failed</td><td>open <em>Actions › Release</em>, the job log names the step; the other platforms&#x27; files are still valid</td></tr>
+<tr><td>A user reports the app &quot;does nothing&quot; after install</td><td>the tray icon is hidden in the overflow area, or GNOME without AppIndicator</td><td><code>USER-MANUAL.md</code> Troubleshooting; a product fix would be FR-110&#x27;s fallback window, which exists only for &quot;no tray at all&quot;</td></tr>
+<tr><td>Reported totals differ between the log and an export</td><td>rounding was applied in the export (footer / <em>Export info</em> sheet says so)</td><td>expected by FR-604/605; the log shows stored values</td></tr>
+<tr><td>A user asks where their data went after uninstall</td><td>nowhere: the uninstaller never touches the data folder</td><td>point them at the folder in <code>USER-MANUAL.md</code> › Reference</td></tr>
+<tr><td>The Sandbox test cannot be run</td><td>Windows Sandbox is not enabled on the machine (admin + reboot)</td><td>accept on the strength of the silent install + fresh-data-folder run, and say so in the acceptance note, as done for 1.0.0</td></tr>
+<tr><td>&quot;Can we add sync / a team view / AI suggestions?&quot;</td><td>PRD-01 §3.2 non-goals and NFR-05/06</td><td>a v2 conversation, not a 1.x ticket</td></tr>
+</tbody></table>
+<h2>Reference</h2>
+<p><strong>Requirement ids</strong>: FR-1xx shell, FR-2xx stopwatch, FR-3xx matrix, FR-4xx labels, FR-5xx log, FR-6xx export, FR-7xx settings, FR-8xx data; NFR-01..10. Priority letters: M must, S should, C could.</p>
+<p><strong>Milestones delivered</strong> (PRD-02 §13, dates from <code>MILESTONES.md</code>): M0 skeleton, M1 data layer, M2 Start–Stop, M3 matrix (11 Sep 2026); M4 trust, M5 document, M6 polish, M7 ship (15 Sep 2026); tag <code>v1.0.0</code> 16 Sep 2026.</p>
+<p><strong>Measured for 1.0.0</strong>: first entry 20 s; boot 1.03 s installed, 0.89 s source; RSS 96 MB installed, 73 MB source; idle CPU 0 ticks / 20 s; log operations at 50 000 rows under 200 ms; 477 automated tests, 5 skipped (other-platform tests).</p>
+<p><strong>Where things are</strong></p>
+<table><thead><tr><th>Question</th><th>Place</th></tr></thead><tbody>
+<tr><td>binaries and release notes</td><td>GitHub › Releases</td></tr>
+<tr><td>build and test status</td><td>GitHub › Actions › CI / Release</td></tr>
+<tr><td>what a user sees</td><td><code>docs/USER-MANUAL.md</code></td></tr>
+<tr><td>how it is built and changed</td><td><code>docs/DEVELOPER-MANUAL.md</code></td></tr>
+<tr><td>data file format</td><td><code>docs/DATA-FORMAT.md</code></td></tr>
+<tr><td>acceptance script</td><td><code>docs/RELEASE-CHECKLIST.md</code></td></tr>
+<tr><td>history and lessons</td><td><code>docs/MILESTONES.md</code></td></tr>
+<tr><td>settled decisions</td><td><code>CLAUDE.md</code></td></tr>
+<tr><td>licence</td><td>MIT (<code>LICENSE</code>); Qt LGPLv3, kept replaceable (<code>THIRD_PARTY_NOTICES.md</code>)</td></tr>
+</tbody></table>
+<p><strong>Platforms</strong>: Windows 10/11 (hand-tested), macOS 13+ and Linux GNOME/KDE/XFCE (CI-built, not hand-tested — stated in the release notes).</p>
+<h2>Verification</h2>
+<p><strong>Verified</strong> for this manual:</p>
+<ul>
+<li>CI run for <code>614dc2f</code> green on all six jobs; release workflow for <code>v1.0.0</code> started on the tag (run 35064772733) — its outcome is being watched and is not asserted here.</li>
+<li>NFR-09 timing of 20 s performed by the owner on the installed build with an empty data folder, 16 September 2026.</li>
+<li>Measurement-mode output for the installed and the source build captured on 16 September 2026 (numbers quoted above).</li>
+<li>Requirements coverage table cross-checked against PRD-01 §8 priorities and <code>MILESTONES.md</code> › <em>What is deliberately not in v1</em>.</li>
+<li>Metric query executed read-only against the owner&#x27;s database on 16 September 2026 (result quoted).</li>
+<li>Silent per-user install of <code>TimeTracker-1.0.0-setup.exe</code> on the owner&#x27;s PC: 683 files, Start Menu entry, uninstaller, no elevation (M7).</li>
+</ul>
+<p><strong>Assumed / not done</strong>:</p>
+<ul>
+<li>No Windows Sandbox or fresh-VM install: the feature is not enabled on the acceptance PC. The installed-build run with an empty data folder stood in for it.</li>
+<li>macOS and Linux artefacts are exercised only by the release workflow&#x27;s smoke test; nobody has clicked through them.</li>
+<li>The &quot;share of workdays&quot; and &quot;hours previously lost&quot; metrics need four weeks of real use; the sample database has seven days.</li>
+</ul>
+<footer>Rendered from Markdown by manual-writing render_html.py. The Markdown source is the authority.</footer>
+</main>
+<script>
+(function(){var r=document.documentElement,b=document.getElementById('tg');
+function cur(){return r.dataset.theme||(matchMedia(
+'(prefers-color-scheme:dark)').matches?'dark':'light')}
+b.onclick=function(){var n=cur()==='dark'?'light':'dark';
+r.dataset.theme=n;b.textContent=n==='dark'?'\u2600 Light':'\u263D Dark'};
+b.textContent=cur()==='dark'?'\u2600 Light':'\u263D Dark'})();
+</script>
+</body>
+</html>
