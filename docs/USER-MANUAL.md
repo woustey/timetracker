@@ -196,6 +196,12 @@ total of the gaps and the first–last span; `‹` `›` step a day, **Today**
 returns. A red line marks now. Double-click a block to jump to that entry in
 the log. Opening the view from a selected log row shows that row's day.
 
+The **Week** tab in the same window is a grid: one row per client, one column
+per day of the week (starting on the day set in *Settings › General*), `h:mm`
+in each cell, a *Total* row and column; today's column is bold. `‹` `›` step
+a week, **This week** returns. Double-click a cell to open that day's
+timeline. Entries without a client are on the `—` row.
+
 ### Bring in entries from another tool
 
 In the log, click **Import CSV…** and pick the file the other tool exported.

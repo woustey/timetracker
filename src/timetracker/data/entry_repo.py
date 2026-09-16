@@ -281,6 +281,25 @@ class EntryRepo:
             _totals(by_type, type_names),
         )
 
+    def totals_by_client_and_day(
+        self, date_from: date, date_to: date
+    ) -> list[tuple[int | None, date, int]]:
+        """(client_id, local_date, seconds) per cell for the weekly grid (FR-510); one scan."""
+        rows = self._conn.execute(
+            "SELECT client_id, local_date, COALESCE(SUM(duration_seconds), 0) AS seconds "
+            "FROM entry WHERE local_date >= ? AND local_date <= ? "
+            "GROUP BY client_id, local_date",
+            (date_from.isoformat(), date_to.isoformat()),
+        ).fetchall()
+        return [
+            (
+                None if r["client_id"] is None else int(r["client_id"]),
+                date.fromisoformat(str(r["local_date"])),
+                int(r["seconds"]),
+            )
+            for r in rows
+        ]
+
     def totals_by(self, dimension: Dimension, flt: EntryFilter | None = None) -> list[LabelTotal]:
         """FR-504 subtotals for one dimension (see :meth:`summary` for both at once)."""
         summary = self.summary(flt)

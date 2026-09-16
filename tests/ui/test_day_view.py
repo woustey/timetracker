@@ -13,6 +13,7 @@ from timetracker.data.entry_repo import EntryRepo
 from timetracker.data.label_repo import LabelRepo
 from timetracker.services.entry_service import EntryService
 from timetracker.services.label_service import LabelService
+from timetracker.services.settings_service import SettingsService
 from timetracker.ui.views.day_view import AXIS_W, HOUR_PX, MARGIN
 from timetracker.ui.views.window import ViewsWindow
 
@@ -38,6 +39,7 @@ def views(  # type: ignore[no-untyped-def]
     entry_service: EntryService,
     labels: LabelService,
     clients: LabelRepo,
+    settings_service: SettingsService,
 ) -> ViewsWindow:
     # Clock: Fri 11 Sep 2026 12:00 Brussels; entries 09:00–10:00, 10:30–11:00, 11:00–11:45 + overlap
     nike = clients.create("Nike")
@@ -46,7 +48,7 @@ def views(  # type: ignore[no-untyped-def]
     _add(entries, day + timedelta(minutes=90), 30)
     _add(entries, day + timedelta(minutes=120), 45)
     _add(entries, day + timedelta(minutes=135), 15, note="overlap")
-    w = ViewsWindow(clock, entries, entry_service, labels)
+    w = ViewsWindow(clock, entries, entry_service, labels, settings_service)
     qtbot.addWidget(w)
     w.resize(640, 700)
     w.show()
@@ -109,3 +111,68 @@ def test_log_toolbar_opens_the_views_window(booted_app) -> None:  # type: ignore
     app.views_window.close()
     assert app.views_window is None
     app.log_window.close()
+
+
+# -- FR-510 weekly grid -----------------------------------------------------------
+
+
+def test_week_grid_cells_totals_navigation_and_double_click(
+    views: ViewsWindow, entries: EntryRepo, clients: LabelRepo, settings_service, qtbot
+) -> None:  # type: ignore[no-untyped-def]
+    from timetracker.services.settings_service import KEY_FIRST_WEEKDAY
+
+    asics = clients.create("ASICS")
+    _add(entries, datetime(2026, 9, 8, 7, 0, tzinfo=UTC), 90, client_id=asics.id)  # Tue
+    _add(entries, datetime(2026, 9, 13, 7, 0, tzinfo=UTC), 15, client_id=asics.id)  # Sun
+    wv = views.week_view
+    views.show_week()
+    assert views.tabs.currentWidget() is wv
+    assert wv.days[0] == date(2026, 9, 7) and wv.days[-1] == date(2026, 9, 13)
+    assert wv.week_label.text() == "Mon 07 Sep – Sun 13 Sep 2026"
+    headers = [wv.table.horizontalHeaderItem(c).text() for c in range(wv.table.columnCount())]
+    assert headers == [
+        "Client",
+        "Mon 07",
+        "Tue 08",
+        "Wed 09",
+        "Thu 10",
+        "Fri 11",
+        "Sat 12",
+        "Sun 13",
+        "Total",
+    ]
+    assert wv.table.horizontalHeaderItem(5).font().bold()  # today (Fri 11)
+    # ASICS 1:45, Nike 1:00, unlabelled 1:30 (fixture) → by total, unlabelled last.
+    rows = [wv.cell_text(r, 0) for r in range(wv.table.rowCount())]
+    assert rows == ["ASICS", "Nike", "—", "Total"]
+    assert [wv.cell_text(0, c) for c in range(1, 9)] == ["", "1:30", "", "", "", "", "0:15", "1:45"]
+    assert [wv.cell_text(1, c) for c in range(1, 9)] == ["", "", "", "", "1:00", "", "", "1:00"]
+    assert [wv.cell_text(3, c) for c in range(1, 9)] == [
+        "",
+        "1:30",
+        "",
+        "",
+        "2:30",
+        "",
+        "0:15",
+        "4:15",
+    ]
+    assert wv.totals.text() == "Week total 4:15"
+
+    wv.prev_button.click()
+    assert wv.days[0] == date(2026, 8, 31)
+    assert wv.totals.text() == "Week total 0:00"
+    assert wv.table.rowCount() == 1  # just the Total row
+    wv.today_button.click()
+    assert wv.days[0] == date(2026, 9, 7)
+
+    settings_service.set(KEY_FIRST_WEEKDAY, 6)  # Sunday-first: the week now starts Sun 6 Sep
+    assert wv.days[0] == date(2026, 9, 6) and wv.days[-1] == date(2026, 9, 12)
+    assert wv.totals.text() == "Week total 4:00"  # the Sunday-13 entry moved to next week
+
+    # Double-clicking a day cell opens the Day view on that date.
+    with qtbot.waitSignal(wv.day_requested, timeout=1000) as blocker:
+        wv._on_cell_double_clicked(0, 3)  # noqa: SLF001 - Tue 8 Sep column
+    assert blocker.args == [date(2026, 9, 8)]
+    assert views.tabs.currentWidget() is views.day_view
+    assert views.day_view.day == date(2026, 9, 8)

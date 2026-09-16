@@ -23,6 +23,9 @@ Everything in 1.0.0, plus the v1.1 backlog from PRD-01 §14:
 - **Day view** (FR-509): *Day view* in the log — the day on a vertical hour
   axis, entries as blocks (side by side when they overlap), gaps hatched and
   labelled, a now line, totals in the header; double-click jumps to the log.
+- **Week view** (FR-510): a *Week* tab beside it — clients × days with
+  `h:mm` per cell, total row and column, week start per your setting;
+  double-click a cell to open that day.
 
 ---
 

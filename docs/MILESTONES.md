@@ -275,6 +275,19 @@ and totals) and `ui/views/window.py` (a tab per view, opened from the log's
 PRD-01 Q3 did not block: M3's anchoring already gives Add Time entries a
 time-of-day. Tests: core (3), UI (4).
 
+**FR-510 weekly grid:** `EntryRepo.totals_by_client_and_day` (one `GROUP BY
+client_id, local_date` scan over the week), `core/weekgrid.py` (`week_days`
+per the first-weekday setting, `build_week_grid` with rows by total and the
+unlabelled row last, marginal totals), `ui/views/week_view.py` (`QTableWidget`,
+bold today column, stepper, double-click → Day view). Tests: core (2), repo
+(1), UI (1).
+
+All six §14 items landed on 16 Sep; the manuals, DATA-FORMAT, release notes
+and CLAUDE.md were updated with each. Not done in this pass: a version bump
+and a release (owner's call), the product-owner manual's coverage table
+(still describes 1.0.0), hands-on testing of the new UI on a real desktop
+(offscreen renders of the Day and Week views were inspected).
+
 ---
 
 ## What is deliberately not in v1

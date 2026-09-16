@@ -328,6 +328,7 @@ class App(QApplication):
                 self._entry_repo,
                 self.entry_service,
                 self.label_service,
+                self.settings_service,
                 workday_start=self.settings_service.workday_start,
             )
             self.views_window.closed.connect(self._on_views_closed)

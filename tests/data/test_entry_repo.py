@@ -271,3 +271,34 @@ def test_overlapping_ids_in_sql_matches_pure_oracle(entries: EntryRepo) -> None:
     assert entries.overlapping_ids() == expected
     assert entries.overlapping_ids() == overlapping_ids(entries.query())
     assert entries.overlapping_ids(EntryFilter(date_from=date(2026, 9, 9))) == set()
+
+
+def test_totals_by_client_and_day_groups_one_scan(entries, clock, clients) -> None:  # type: ignore[no-untyped-def]
+    """FR-510: one grouped row per (client, local day) inside the range; empty days absent."""
+    from datetime import UTC, datetime, timedelta
+
+    from timetracker.core.models import NewEntry, RecordMethod
+
+    nike = clients.create("Nike")
+    monday = datetime(2026, 9, 14, 7, 0, tzinfo=UTC)
+    for start, minutes, client_id in (
+        (monday, 60, nike.id),
+        (monday + timedelta(hours=3), 30, nike.id),
+        (monday + timedelta(days=2), 45, None),
+        (monday + timedelta(days=9), 15, nike.id),  # next week
+    ):
+        entries.insert(
+            NewEntry(
+                start,
+                start + timedelta(minutes=minutes),
+                "Europe/Brussels",
+                minutes * 60,
+                RecordMethod.QUICKADD,
+                client_id=client_id,
+            )
+        )
+    cells = entries.totals_by_client_and_day(date(2026, 9, 14), date(2026, 9, 20))
+    assert sorted(cells, key=lambda c: (c[1], c[0] or 0)) == [
+        (nike.id, date(2026, 9, 14), 5400),
+        (None, date(2026, 9, 16), 2700),
+    ]
