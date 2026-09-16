@@ -54,8 +54,6 @@ def main() -> int:
         "--include-package=timetracker",
         "--include-package-data=timetracker.resources",
         "--include-package=openpyxl",  # lazy-imported, so Nuitka would not see it
-        "--include-package=tzdata",
-        "--include-package-data=tzdata",
         "--nofollow-import-to=pytest",
         "--output-dir=" + str(out),
         "--output-filename=timetracker",
@@ -68,6 +66,10 @@ def main() -> int:
     ]
     if sys.platform == "win32":
         cmd += [
+            # tzdata is a win32-only dependency (macOS/Linux use the system zoneinfo);
+            # Nuitka refuses to include a package that is not installed.
+            "--include-package=tzdata",
+            "--include-package-data=tzdata",
             "--windows-console-mode=disable",
             f"--windows-icon-from-ico={RES / 'icon.ico'}",
         ]
