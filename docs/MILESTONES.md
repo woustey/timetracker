@@ -231,6 +231,14 @@ the wall-clock gap (a chronology fact), never the monotonic delta — sleeping
 through a pause on Linux would otherwise lose it. Tests: service (6), idle
 monitor (2), migration (1), tray (2), popover (1).
 
+**FR-702 reminders:** `ReminderService` (60 s check under the `Clock`; the
+quiet period starts at the later of the last activity — timer state change,
+entry change, launch, switching the setting on — and today's working-window
+start; repeats every N minutes), five `reminders.*` settings, a *Remind me*
+group on the Timer tab, `TrayIcon.show_message` + `message_clicked` →
+popover. Balloon delivery is platform-dependent and not verified by tests
+(`last_message` is). Tests: service (6), settings dialog (1), tray (1).
+
 ---
 
 ## What is deliberately not in v1

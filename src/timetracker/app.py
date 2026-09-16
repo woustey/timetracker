@@ -32,6 +32,7 @@ from timetracker.services.export_service import ExportService
 from timetracker.services.idle_monitor import IdleMonitor, IdleOutcome, IdleSpan
 from timetracker.services.label_service import LabelService
 from timetracker.services.power_monitor import PowerMonitor
+from timetracker.services.reminder_service import ReminderService
 from timetracker.services.settings_service import (
     KEY_AUTOSTART_OFFERED,
     KEY_IDLE_THRESHOLD_MIN,
@@ -87,6 +88,7 @@ class App(QApplication):
         self.settings_service: SettingsService | None = None
         self.idle_monitor: IdleMonitor | None = None
         self.power_monitor: PowerMonitor | None = None
+        self.reminder_service: ReminderService | None = None
         self.export_service: ExportService | None = None
         self.backup_service: BackupService | None = None
         self.log_window: LogWindow | None = None
@@ -188,6 +190,13 @@ class App(QApplication):
         self.power_monitor.resumed_from_suspend.connect(self.idle_monitor.on_suspend_resumed)
         self.power_monitor.start()
         self.settings_service.setting_changed.connect(self._on_setting_changed)
+
+        # -- reminders (FR-702, opt-in) --------------------------------------
+        self.reminder_service = ReminderService(
+            self.clock, self.settings_service, self.timer_service, self.entry_service, self
+        )
+        self.reminder_service.reminder_due.connect(self._on_reminder_due)
+        self.tray.message_clicked.connect(self.show_popover)
         log().info("Idle provider: %s", getattr(provider, "name", provider))
 
         self._watcher = QFileSystemWatcher([str(directory)], self)
@@ -216,6 +225,9 @@ class App(QApplication):
             self.power_monitor.stop()
             self.power_monitor = None
         self.idle_monitor = None
+        if self.reminder_service is not None:
+            self.reminder_service.deleteLater()
+            self.reminder_service = None
         for dialog in (self._idle_dialog, self._long_running_dialog):
             if dialog is not None:
                 dialog.close()
@@ -475,6 +487,14 @@ class App(QApplication):
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
+
+    def _on_reminder_due(self, quiet_minutes: int) -> None:
+        if self.tray is None:
+            return
+        self.tray.show_message(
+            "Nothing is being tracked",
+            f"No timer or entry for {format_hm(quiet_minutes * 60)}. Click to open Time Tracker.",
+        )
 
     def _on_setting_changed(self, key: str) -> None:
         if self.settings_service is None:

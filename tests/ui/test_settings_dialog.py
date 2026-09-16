@@ -6,6 +6,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import QTime
 from PySide6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 
 from timetracker.core.clock import FakeClock
@@ -86,6 +87,16 @@ def test_timer_and_export_tabs(
     assert settings_service.long_running_seconds == 8 * 3600
     d.mandatory_client.setChecked(False)
     assert settings_service.mandatory_client is False
+    # FR-702 reminders: off by default, every control writes through
+    assert not d.reminders.isChecked()
+    d.reminders.setChecked(True)
+    assert settings_service.reminders_enabled
+    d.reminder_minutes.setValue(45)
+    assert settings_service.reminder_minutes == 45
+    d.reminder_end.setTime(QTime(18, 30))
+    assert settings_service.reminder_end.strftime("%H:%M") == "18:30"
+    d.reminder_days[5].setChecked(True)  # Saturday
+    assert settings_service.reminder_days == frozenset({0, 1, 2, 3, 4, 5})
     d.rounding.setCurrentIndex(d.rounding.findData(15))
     assert settings_service.get(KEY_ROUNDING_MINUTES) == 15
     d.scope.setCurrentIndex(d.scope.findData("per_entry"))

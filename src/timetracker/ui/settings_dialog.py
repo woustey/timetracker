@@ -5,7 +5,7 @@ dance) so a change is visible in the running app at once. Tabs:
 
 - **General** — start at login, theme, first day of week, time format
 - **Timer** — idle threshold (with the provider or the reason it is unavailable,
-  P7), long-running prompt, mandatory client/type
+  P7), long-running prompt, mandatory client/type, reminders (FR-702)
 - **Export** — rounding increment and scope, CSV delimiter, export folder
 - **Labels** — rename, archive/unarchive, delete when unused, with usage counts
 - **Data** — data folder, log file, back up now, restore, export all data
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtCore import Qt, QTime, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSpinBox,
     QTabWidget,
+    QTimeEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -56,6 +57,11 @@ from timetracker.services.settings_service import (
     KEY_LONG_RUNNING_HOURS,
     KEY_MANDATORY_CLIENT,
     KEY_MANDATORY_TYPE,
+    KEY_REMINDER_DAYS,
+    KEY_REMINDER_ENABLED,
+    KEY_REMINDER_END,
+    KEY_REMINDER_MINUTES,
+    KEY_REMINDER_START,
     KEY_ROUNDING_MINUTES,
     KEY_ROUNDING_SCOPE,
     KEY_THEME,
@@ -301,7 +307,62 @@ class SettingsDialog(QDialog):
         box_layout.addWidget(self.mandatory_type)
         box_layout.addWidget(QLabel("The stopwatch never blocks on labels."))
         form.addRow(box)
+
+        # FR-702: opt-in reminders, off by default.
+        rem = QGroupBox("Remind me when nothing is being tracked")
+        rem.setCheckable(True)
+        rem.setChecked(self._settings.reminders_enabled)
+        rem.toggled.connect(lambda on: self._settings.set(KEY_REMINDER_ENABLED, bool(on)))
+        self.reminders = rem
+        rem_form = QFormLayout(rem)
+        self.reminder_minutes = QSpinBox()
+        self.reminder_minutes.setAccessibleName("Reminder after minutes")
+        self.reminder_minutes.setRange(5, 480)
+        self.reminder_minutes.setSingleStep(5)
+        self.reminder_minutes.setSuffix(" min")
+        self.reminder_minutes.setValue(self._settings.reminder_minutes)
+        self.reminder_minutes.valueChanged.connect(
+            lambda v: self._settings.set(KEY_REMINDER_MINUTES, int(v))
+        )
+        rem_form.addRow("After", self.reminder_minutes)
+        hours = QHBoxLayout()
+        self.reminder_start = QTimeEdit(
+            QTime.fromString(self._settings.reminder_start.strftime("%H:%M"), "HH:mm")
+        )
+        self.reminder_start.setAccessibleName("Working hours start")
+        self.reminder_end = QTimeEdit(
+            QTime.fromString(self._settings.reminder_end.strftime("%H:%M"), "HH:mm")
+        )
+        self.reminder_end.setAccessibleName("Working hours end")
+        for edit, key in (
+            (self.reminder_start, KEY_REMINDER_START),
+            (self.reminder_end, KEY_REMINDER_END),
+        ):
+            edit.setDisplayFormat("HH:mm")
+            edit.timeChanged.connect(lambda t, k=key: self._settings.set(k, t.toString("HH:mm")))
+        hours.addWidget(self.reminder_start)
+        hours.addWidget(QLabel("to"))
+        hours.addWidget(self.reminder_end)
+        hours.addStretch(1)
+        rem_form.addRow("Between", hours)
+        days = QHBoxLayout()
+        self.reminder_days: list[QCheckBox] = []
+        selected = self._settings.reminder_days
+        for i, name in enumerate(("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")):
+            cb = QCheckBox(name)
+            cb.setChecked(i in selected)
+            cb.toggled.connect(self._on_reminder_days_changed)
+            self.reminder_days.append(cb)
+            days.addWidget(cb)
+        days.addStretch(1)
+        rem_form.addRow("On", days)
+        form.addRow(rem)
         return page
+
+    def _on_reminder_days_changed(self, _on: bool) -> None:
+        self._settings.set(
+            KEY_REMINDER_DAYS, [i for i, cb in enumerate(self.reminder_days) if cb.isChecked()]
+        )
 
     # -- Export ------------------------------------------------------------------
 

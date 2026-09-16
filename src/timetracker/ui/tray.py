@@ -29,6 +29,7 @@ class TrayIcon(QObject):
     open_log_requested = Signal()
     settings_requested = Signal()
     quit_requested = Signal()
+    message_clicked = Signal()  # the reminder balloon (FR-702)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -62,6 +63,8 @@ class TrayIcon(QObject):
         self._tray.setContextMenu(self._menu)
         self._tray.setToolTip(_TOOLTIP_IDLE)
         self._tray.activated.connect(self._on_activated)
+        self._tray.messageClicked.connect(self.message_clicked.emit)
+        self._last_message: tuple[str, str] | None = None
 
     # -- state ---------------------------------------------------------------
 
@@ -85,6 +88,15 @@ class TrayIcon(QObject):
 
     def geometry(self) -> QRect:
         return self._tray.geometry()
+
+    def show_message(self, title: str, body: str, *, seconds: int = 10) -> None:
+        """A passive balloon (FR-702). Platforms without balloons silently drop it."""
+        self._last_message = (title, body)
+        self._tray.showMessage(title, body, QSystemTrayIcon.MessageIcon.Information, seconds * 1000)
+
+    @property
+    def last_message(self) -> tuple[str, str] | None:
+        return self._last_message
 
     # -- lifecycle -----------------------------------------------------------
 

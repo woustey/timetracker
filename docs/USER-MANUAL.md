@@ -127,6 +127,15 @@ The log keeps the total paused time for each entry (hover the *Total* cell).
 A timer that runs for 12 hours (changeable) raises a second question:
 **Keep running** or **Stop now**.
 
+### Forgot to start the timer?
+
+*Settings › Timer › Remind me when nothing is being tracked* (off unless you
+turn it on) shows a passive notification when no timer is running and
+nothing has been added for, say, 60 minutes — only inside the working hours
+and days you set. It repeats every N minutes until you start, pause, add or
+edit something. Quiet time before the working day starts does not count, so
+the first reminder of a Monday comes N minutes after your start time.
+
 ### Fix a mistake in the log
 
 - **Change a value:** double-click the cell (date, start, end, total, client,
@@ -180,7 +189,7 @@ Right-click → **Settings…**. Five tabs:
 | Tab | What is there |
 |---|---|
 | **General** | *Start Time Tracker when I log in*; theme (system / light / dark); first day of the week; 12 h / 24 h clock |
-| **Timer** | idle threshold in minutes (0 = off); long-running warning in hours (0 = off). Sleep and lock are always detected. |
+| **Timer** | idle threshold in minutes (0 = off); long-running warning in hours (0 = off). Sleep and lock are always detected. *Remind me when nothing is being tracked* (off by default): a small notification from the clock icon after N quiet minutes, only between the hours and on the days you tick; clicking it opens the popover. |
 | **Export** | default rounding and scope; CSV separator; export folder |
 | **Labels** | rename, archive (hide from the chips, keep in history) or delete a client or category; delete works only when no entry uses it |
 | **Data** | *Reveal data folder*, *Open log file*, **Back up now**, **Restore from backup…**, **Export all data…** (every entry and label as CSV and JSON) |

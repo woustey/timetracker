@@ -179,3 +179,20 @@ def test_fr212_pause_with_an_outstanding_idle_prompt_raises_the_prompt(booted_ap
     assert svc.is_running and not svc.is_paused
     app._idle_dialog.discard.click()  # noqa: SLF001
     svc.stop()
+
+
+def test_fr702_reminder_shows_a_balloon_and_a_click_opens_the_popover(
+    booted_app,
+) -> None:  # type: ignore[no-untyped-def]
+    app = booted_app
+    tray, reminders = app.tray, app.reminder_service
+    assert reminders is not None and not reminders.polling  # off by default
+    assert tray.last_message is None
+    reminders.reminder_due.emit(125)  # what the service raises after 2 h 05 of quiet
+    assert tray.last_message == (
+        "Nothing is being tracked",
+        "No timer or entry for 2:05. Click to open Time Tracker.",
+    )
+    tray.system_tray_icon.messageClicked.emit()
+    assert app.popover is not None and app.popover.isVisible()
+    app.popover.hide()

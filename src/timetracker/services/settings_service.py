@@ -29,6 +29,11 @@ KEY_THEME = "ui.theme"  # "system" | "light" | "dark" (FR-701)
 KEY_FIRST_WEEKDAY = "ui.first_weekday"  # 0 = Monday … 6 = Sunday (FR-701)
 KEY_TIME_FORMAT = "ui.time_format"  # "24h" | "12h" (FR-701)
 KEY_AUTOSTART_OFFERED = "app.autostart_offered"  # FR-108: offered once on first run
+KEY_REMINDER_ENABLED = "reminders.enabled"  # FR-702, off by default
+KEY_REMINDER_MINUTES = "reminders.minutes"  # quiet minutes before a reminder
+KEY_REMINDER_DAYS = "reminders.days"  # list of weekdays, 0 = Monday
+KEY_REMINDER_START = "reminders.start"  # "HH:MM" local
+KEY_REMINDER_END = "reminders.end"  # "HH:MM" local, exclusive
 
 DEFAULTS: dict[str, Any] = {
     KEY_MANDATORY_CLIENT: True,  # PRD-01 Q1: mandatory by default, with a setting
@@ -45,6 +50,11 @@ DEFAULTS: dict[str, Any] = {
     KEY_FIRST_WEEKDAY: 0,
     KEY_TIME_FORMAT: "24h",
     KEY_AUTOSTART_OFFERED: False,
+    KEY_REMINDER_ENABLED: False,
+    KEY_REMINDER_MINUTES: 60,
+    KEY_REMINDER_DAYS: [0, 1, 2, 3, 4],
+    KEY_REMINDER_START: "09:00",
+    KEY_REMINDER_END: "17:00",
 }
 
 
@@ -148,3 +158,38 @@ class SettingsService(QObject):
             return time.fromisoformat(raw)
         except ValueError:
             return time.fromisoformat(DEFAULTS[KEY_WORKDAY_START])
+
+    # -- reminders (FR-702) --------------------------------------------------
+
+    @property
+    def reminders_enabled(self) -> bool:
+        return bool(self.get(KEY_REMINDER_ENABLED))
+
+    @property
+    def reminder_minutes(self) -> int:
+        try:
+            return max(1, int(self.get(KEY_REMINDER_MINUTES)))
+        except (TypeError, ValueError):
+            return int(DEFAULTS[KEY_REMINDER_MINUTES])
+
+    @property
+    def reminder_days(self) -> frozenset[int]:
+        raw = self.get(KEY_REMINDER_DAYS)
+        try:
+            return frozenset(int(d) for d in raw if 0 <= int(d) <= 6)
+        except (TypeError, ValueError):
+            return frozenset(DEFAULTS[KEY_REMINDER_DAYS])
+
+    @property
+    def reminder_start(self) -> time:
+        return self._time_setting(KEY_REMINDER_START)
+
+    @property
+    def reminder_end(self) -> time:
+        return self._time_setting(KEY_REMINDER_END)
+
+    def _time_setting(self, key: str) -> time:
+        try:
+            return time.fromisoformat(str(self.get(key)))
+        except ValueError:
+            return time.fromisoformat(DEFAULTS[key])

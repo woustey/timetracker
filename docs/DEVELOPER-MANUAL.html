@@ -212,6 +212,7 @@ py -3.13 -m venv .venv
 <tr><td><code>data/*_repo.py</code></td><td><code>EntryRepo</code> (query / export_rows / summary / overlapping_ids …), <code>LabelRepo</code>, <code>TimerRepo</code>, <code>SettingsRepo</code></td></tr>
 <tr><td><code>services/timer_service.py</code></td><td>the only writer of <code>running_timer</code> and creator of STOPWATCH entries; 30 s heartbeat</td></tr>
 <tr><td><code>services/idle_monitor.py</code>, <code>power_monitor.py</code></td><td>idle/sleep detection → <code>IdleSpan</code></td></tr>
+<tr><td><code>services/reminder_service.py</code></td><td>FR-702: 60 s check, <code>reminder_due</code> → tray balloon; opt-in</td></tr>
 <tr><td><code>services/entry_service.py</code>, <code>label_service.py</code>, <code>export_service.py</code>, <code>backup_service.py</code>, <code>settings_service.py</code></td><td>one workflow each</td></tr>
 <tr><td><code>platform/</code></td><td><code>IdleProvider</code>, <code>AutostartProvider</code> per OS; <code>factory.py</code> picks; <code>launch_command()</code></td></tr>
 <tr><td><code>ui/tray.py</code>, <code>ui/popover.py</code>, <code>ui/quickadd/</code>, <code>ui/log/</code>, <code>ui/dialogs/</code>, <code>ui/settings_dialog.py</code>, <code>ui/theme.py</code></td><td>widgets</td></tr>

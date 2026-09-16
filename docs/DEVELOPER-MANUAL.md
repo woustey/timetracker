@@ -344,6 +344,7 @@ nothing changed; only commit it after a deliberate change to the painter in
 | `data/*_repo.py` | `EntryRepo` (query / export_rows / summary / overlapping_ids …), `LabelRepo`, `TimerRepo`, `SettingsRepo` |
 | `services/timer_service.py` | the only writer of `running_timer` and creator of STOPWATCH entries; 30 s heartbeat |
 | `services/idle_monitor.py`, `power_monitor.py` | idle/sleep detection → `IdleSpan` |
+| `services/reminder_service.py` | FR-702: 60 s check, `reminder_due` → tray balloon; opt-in |
 | `services/entry_service.py`, `label_service.py`, `export_service.py`, `backup_service.py`, `settings_service.py` | one workflow each |
 | `platform/` | `IdleProvider`, `AutostartProvider` per OS; `factory.py` picks; `launch_command()` |
 | `ui/tray.py`, `ui/popover.py`, `ui/quickadd/`, `ui/log/`, `ui/dialogs/`, `ui/settings_dialog.py`, `ui/theme.py` | widgets |

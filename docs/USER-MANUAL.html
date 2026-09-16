@@ -116,6 +116,8 @@ color:var(--muted);font-size:.85rem}
 <h3>Pause</h3>
 <p>For a break you know about — lunch, a school run — click <strong>Pause</strong> next to <strong>Stop</strong> (or right-click the icon → <strong>Pause</strong>). The clock stops counting, the icon turns grey with two bars, and <strong>Resume</strong> continues the <em>same</em> entry. While paused nothing is counted and the app does not ask about away time. If you click <strong>Stop</strong> while paused, the entry ends at the moment you paused. The log keeps the total paused time for each entry (hover the <em>Total</em> cell).</p>
 <p>A timer that runs for 12 hours (changeable) raises a second question: <strong>Keep running</strong> or <strong>Stop now</strong>.</p>
+<h3>Forgot to start the timer?</h3>
+<p><em>Settings › Timer › Remind me when nothing is being tracked</em> (off unless you turn it on) shows a passive notification when no timer is running and nothing has been added for, say, 60 minutes — only inside the working hours and days you set. It repeats every N minutes until you start, pause, add or edit something. Quiet time before the working day starts does not count, so the first reminder of a Monday comes N minutes after your start time.</p>
 <h3>Fix a mistake in the log</h3>
 <ul>
 <li><strong>Change a value:</strong> double-click the cell (date, start, end, total, client, type, note) and type. Changing the <em>Total</em> keeps the start and moves the end. An edited line shows ✎ in the first column; the method column never changes.</li>
@@ -135,7 +137,7 @@ color:var(--muted);font-size:.85rem}
 <p>Right-click → <strong>Settings…</strong>. Five tabs:</p>
 <table><thead><tr><th>Tab</th><th>What is there</th></tr></thead><tbody>
 <tr><td><strong>General</strong></td><td><em>Start Time Tracker when I log in</em>; theme (system / light / dark); first day of the week; 12 h / 24 h clock</td></tr>
-<tr><td><strong>Timer</strong></td><td>idle threshold in minutes (0 = off); long-running warning in hours (0 = off). Sleep and lock are always detected.</td></tr>
+<tr><td><strong>Timer</strong></td><td>idle threshold in minutes (0 = off); long-running warning in hours (0 = off). Sleep and lock are always detected. <em>Remind me when nothing is being tracked</em> (off by default): a small notification from the clock icon after N quiet minutes, only between the hours and on the days you tick; clicking it opens the popover.</td></tr>
 <tr><td><strong>Export</strong></td><td>default rounding and scope; CSV separator; export folder</td></tr>
 <tr><td><strong>Labels</strong></td><td>rename, archive (hide from the chips, keep in history) or delete a client or category; delete works only when no entry uses it</td></tr>
 <tr><td><strong>Data</strong></td><td><em>Reveal data folder</em>, <em>Open log file</em>, <strong>Back up now</strong>, <strong>Restore from backup…</strong>, <strong>Export all data…</strong> (every entry and label as CSV and JSON)</td></tr>

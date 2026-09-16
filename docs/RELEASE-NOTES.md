@@ -8,6 +8,9 @@ Everything in 1.0.0, plus the v1.1 backlog from PRD-01 §14:
   shown when hovering the log's *Total* cell). Stopping while paused ends the
   entry at the moment it was paused. Schema v4 (automatic, a pre-migration
   copy is kept as always).
+- **Reminders** (FR-702, off by default): *Settings › Timer › Remind me when
+  nothing is being tracked* — after N quiet minutes inside your working hours
+  and days, a passive tray notification; clicking it opens the popover.
 
 ---
 

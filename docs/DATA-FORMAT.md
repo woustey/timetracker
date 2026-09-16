@@ -97,7 +97,9 @@ pause start. Never edit this table.
 ### `setting` — key/value, JSON-encoded values
 
 Everything in Settings, plus a few remembered UI states (`popover.last_mode`,
-`app.autostart_offered`). Delete a row to get the default back.
+`app.autostart_offered`). Reminder settings (1.1) are `reminders.enabled`,
+`reminders.minutes`, `reminders.days` (JSON list, 0 = Monday), `reminders.start`
+and `reminders.end` (`HH:MM`, local). Delete a row to get the default back.
 
 ### `schema_migration`
 
