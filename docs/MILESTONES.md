@@ -264,6 +264,17 @@ method would have cost a schema rebuild for no user-visible gain. Deriving
 tool's data, stored as the fact from then on. Tests: core (5), service (2),
 log window (1).
 
+**FR-509 day timeline:** `core/timeline.py` (`layout_day`: anchors clipped to
+the local day, zero-length entries widened to a minute, greedy lane
+assignment per overlapping cluster, gaps as the holes in the union of spans,
+tracked vs. covered totals), `ui/views/day_view.py` (`DayCanvas` paints from
+the palette — light and dark checked offscreen — with a per-client hue,
+hatched gaps, a now line, hover and double-click; `DayView` adds the stepper
+and totals) and `ui/views/window.py` (a tab per view, opened from the log's
+*Day view* action on the selected row's day; double-click → `LogWindow.reveal`).
+PRD-01 Q3 did not block: M3's anchoring already gives Add Time entries a
+time-of-day. Tests: core (3), UI (4).
+
 ---
 
 ## What is deliberately not in v1

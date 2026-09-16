@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from datetime import date
 from pathlib import Path
 
 from PySide6.QtCore import QFileSystemWatcher, QProcess, QTimer, QTimeZone
@@ -54,6 +55,7 @@ from timetracker.ui.popover import Popover, PopoverMode
 from timetracker.ui.settings_dialog import SettingsDialog
 from timetracker.ui.theme import ThemeManager
 from timetracker.ui.tray import TrayIcon
+from timetracker.ui.views.window import ViewsWindow
 
 _NO_TRAY_TEXT = (
     "Time Tracker lives in the system tray, and this desktop session does not "
@@ -94,6 +96,7 @@ class App(QApplication):
         self.export_service: ExportService | None = None
         self.backup_service: BackupService | None = None
         self.log_window: LogWindow | None = None
+        self.views_window: ViewsWindow | None = None
         self.settings_dialog: SettingsDialog | None = None
         self.theme = ThemeManager(self, self)
         self._first_run_dialog: FirstRunDialog | None = None
@@ -241,6 +244,9 @@ class App(QApplication):
         if self.log_window is not None:
             self.log_window.close()
             self.log_window = None
+        if self.views_window is not None:
+            self.views_window.close()
+            self.views_window = None
         if self.settings_dialog is not None:
             self.settings_dialog.close()
             self.settings_dialog = None
@@ -301,9 +307,42 @@ class App(QApplication):
                 importer=self.import_service,
             )
             self.log_window.closed.connect(self._on_log_closed)
+            self.log_window.views_requested.connect(self.show_views)
         self.log_window.show()
         self.log_window.raise_()
         self.log_window.activateWindow()
+
+    def show_views(self, day: object = None) -> None:
+        """v1.1 *Day view* (FR-509) / *Week* (FR-510): one window, re-raised if open."""
+        if self.views_window is None:
+            if (
+                self.clock is None
+                or self._entry_repo is None
+                or self.entry_service is None
+                or self.label_service is None
+                or self.settings_service is None
+            ):
+                return
+            self.views_window = ViewsWindow(
+                self.clock,
+                self._entry_repo,
+                self.entry_service,
+                self.label_service,
+                workday_start=self.settings_service.workday_start,
+            )
+            self.views_window.closed.connect(self._on_views_closed)
+            self.views_window.entry_activated.connect(self._reveal_in_log)
+        self.views_window.show_day(day if isinstance(day, date) else None)
+
+    def _on_views_closed(self) -> None:
+        if self.views_window is not None:
+            self.views_window.deleteLater()
+            self.views_window = None
+
+    def _reveal_in_log(self, entry_id: int, local_date: object) -> None:
+        self.show_log()
+        if self.log_window is not None and isinstance(local_date, date):
+            self.log_window.reveal(entry_id, local_date)
 
     def show_settings(self) -> None:
         """FR-103 *Settings…*: one dialog, re-raised if already open."""

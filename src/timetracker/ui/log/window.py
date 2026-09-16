@@ -61,6 +61,7 @@ _ANY = "All"
 
 class LogWindow(QMainWindow):
     closed = Signal()
+    views_requested = Signal(object)  # local date or None — open the Day view (FR-509)
 
     def __init__(
         self,
@@ -165,6 +166,10 @@ class LogWindow(QMainWindow):
         self.export_button.setMenu(self.export_menu)
         bar.addWidget(self.export_button)
         self._rebuild_preset_menu()
+        self.views_action = QAction("Day view", self)
+        self.views_action.setToolTip("Entries on a timeline, gaps visible (FR-509)")
+        self.views_action.triggered.connect(self._open_day_view)
+        bar.addAction(self.views_action)
         self.import_action = QAction("Import CSV…", self)
         self.import_action.setEnabled(importer is not None)
         self.import_action.triggered.connect(self.import_csv)
@@ -598,6 +603,15 @@ class LogWindow(QMainWindow):
             self._export_with(
                 fmt, options, suggested=self.default_export_name(fmt).replace(".", "-2.")
             )
+
+    def _open_day_view(self) -> None:
+        """Open the Day view on the selected entry's day, else the range start, else today."""
+        rows = self.table.selectionModel().selectedRows() if self.table.selectionModel() else []
+        if rows:
+            entry = self.model.entry_at(rows[0].row())
+            self.views_requested.emit(entry.local_date)
+            return
+        self.views_requested.emit(self.model.filter.date_to)
 
     # -- import (FR-805) ---------------------------------------------------------
 

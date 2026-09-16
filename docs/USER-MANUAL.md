@@ -185,6 +185,17 @@ is never overwritten (`-2`, `-3`, … are added). The filters are *not* part of
 a preset: a preset exports whatever the log shows. Remove presets in
 *Settings › Export*.
 
+### See a day as a timeline
+
+In the log, click **Day view**. One day is drawn top to bottom against the
+hours: each entry is a block (coloured per client, labelled with client,
+category and note), entries that overlap sit side by side, and the time
+between blocks is hatched and labelled **gap 0:45** — the unaccounted time
+the view exists to show. The header gives the count, the tracked total, the
+total of the gaps and the first–last span; `‹` `›` step a day, **Today**
+returns. A red line marks now. Double-click a block to jump to that entry in
+the log. Opening the view from a selected log row shows that row's day.
+
 ### Bring in entries from another tool
 
 In the log, click **Import CSV…** and pick the file the other tool exported.

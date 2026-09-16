@@ -20,6 +20,9 @@ Everything in 1.0.0, plus the v1.1 backlog from PRD-01 §14:
   (skipped) and rows already in the log (skipped unless you say otherwise),
   day-first / month-first dates, durations as `1:30`, `1h15`, minutes or
   decimal hours, or derived from start and end. All-or-nothing write.
+- **Day view** (FR-509): *Day view* in the log — the day on a vertical hour
+  axis, entries as blocks (side by side when they overlap), gaps hatched and
+  labelled, a now line, totals in the header; double-click jumps to the log.
 
 ---
 
