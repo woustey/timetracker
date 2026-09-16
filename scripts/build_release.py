@@ -22,7 +22,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 RES = SRC / "timetracker" / "resources"
-ENTRY = SRC / "timetracker" / "__main__.py"
+# Compiled as a package (`--python-flag=-m` + the package directory), the way
+# `python -m timetracker` runs it; Nuitka warns when given `__main__.py` alone.
+ENTRY = SRC / "timetracker"
 
 
 def version() -> str:
@@ -50,9 +52,13 @@ def main() -> int:
         "-m",
         "nuitka",
         "--standalone",
+        "--python-flag=-m",
         "--assume-yes-for-downloads",
         "--enable-plugin=pyside6",
-        "--include-package=timetracker",
+        # Package mode already compiles everything reachable by import; the
+        # migrations are loaded by name (importlib over pkgutil), so only they
+        # need forcing in.
+        "--include-package=timetracker.data.migrations",
         "--include-package-data=timetracker.resources",
         "--include-package=openpyxl",  # lazy-imported, so Nuitka would not see it
         "--nofollow-import-to=pytest",
@@ -72,8 +78,7 @@ def main() -> int:
         cmd += [
             # tzdata is a win32-only dependency (macOS/Linux use the system zoneinfo);
             # Nuitka refuses to include a package that is not installed.
-            "--include-package=tzdata",
-            "--include-package-data=tzdata",
+            "--include-package=tzdata",  # Nuitka ships its zoneinfo files with it
             "--windows-console-mode=disable",
             f"--windows-icon-from-ico={RES / 'icon.ico'}",
         ]
@@ -95,8 +100,8 @@ def main() -> int:
     print(" ".join(cmd))
     subprocess.run(cmd, check=True, cwd=ROOT)
 
-    # Nuitka names the folder after the entry module; give it a stable name.
-    # On macOS it leaves both `__main__.dist` and the `__main__.app` bundle
+    # Nuitka names the folder after the entry package; give it a stable name.
+    # On macOS it leaves both `timetracker.dist` and the `timetracker.app` bundle
     # built from it: the bundle is the product.
     candidates = sorted(out.iterdir(), key=lambda p: p.suffix != ".app")
     produced = next((p for p in candidates if p.name.endswith((".app", ".dist"))), None)

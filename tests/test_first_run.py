@@ -82,6 +82,27 @@ def test_launch_command_when_frozen(monkeypatch: pytest.MonkeyPatch, tmp_path: P
     assert launch_command() == [str(fake_exe)]
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="8.3 short names are a Windows thing")
+def test_launch_command_writes_the_long_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import ctypes
+
+    from timetracker.platform.factory import launch_command
+
+    folder = tmp_path / "Time Tracker Program"
+    folder.mkdir()
+    fake_exe = folder / "timetracker.exe"
+    fake_exe.write_bytes(b"MZ")
+    buf = ctypes.create_unicode_buffer(260)
+    short = ctypes.windll.kernel32.GetShortPathNameW(str(fake_exe), buf, 260)
+    if not short or "~" not in buf.value:
+        pytest.skip("8.3 names disabled on this volume")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", buf.value)
+    assert launch_command() == [str(fake_exe)]
+
+
 def test_installer_script_and_workflow_are_consistent() -> None:
     iss = (ROOT / "installer" / "windows.iss").read_text(encoding="utf-8")
     assert "PrivilegesRequired=lowest" in iss  # per-user, no elevation (§12.2)

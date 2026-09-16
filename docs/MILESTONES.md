@@ -207,6 +207,14 @@ Published with five assets; CI-runner measurements: Windows 0.41 s / 69 MB,
 Linux 0.63 s / 96 MB, macOS 1.98 s / 149 MB. Three manuals (user, developer,
 product owner; Markdown + self-contained HTML) were added the same day.
 
+**Post-release tidy-ups (16 Sep):** `launch_command()` resolves the executable
+to its long path (`os.path.realpath`), so the Windows Run key no longer shows
+the 8.3 name the installer launched the app with; the Nuitka build compiles the
+package in `-m` mode (`--python-flag=-m` + the package directory) and only
+forces in `timetracker.data.migrations` (loaded by name) — the "specify its
+containing directory" and the 600-odd duplicate-tzdata warnings are gone. The
+session handoff document lives in `docs/HANDOFF.md`.
+
 ---
 
 ## What is deliberately not in v1

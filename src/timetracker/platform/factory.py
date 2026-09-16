@@ -30,17 +30,31 @@ def autostart_provider() -> AutostartProvider | Unavailable:
 
 
 def launch_command() -> list[str]:
-    """How to start this installation again: the frozen exe, the GUI script, or ``pythonw -m``."""
+    """How to start this installation again: the frozen exe, the GUI script, or ``pythonw -m``.
+
+    The path is the long, resolved one: ``sys.executable`` can be an 8.3 short
+    name (``TIMETR~1``) when the installer launched us, and that is what the
+    Run key would otherwise show in Task Manager › Startup apps.
+    """
     exe = Path(sys.executable)
     if getattr(sys, "frozen", False):
-        return [str(exe)]
+        return [_long_path(exe)]
     script = exe.with_name("timetracker.exe" if sys.platform == "win32" else "timetracker")
     if script.exists():
-        return [str(script)]
+        return [_long_path(script)]
     interpreter = exe.with_name("pythonw.exe") if sys.platform == "win32" else exe
     if not interpreter.exists():
         interpreter = exe
-    return [str(interpreter), "-m", "timetracker"]
+    return [_long_path(interpreter), "-m", "timetracker"]
+
+
+def _long_path(path: Path) -> str:
+    # realpath resolves 8.3 names on Windows (GetFinalPathNameByHandle) and
+    # symlinks elsewhere; an unresolvable path is returned as given.
+    try:
+        return os.path.realpath(path, strict=True)
+    except OSError:
+        return str(path)
 
 
 def idle_provider() -> IdleProvider | Unavailable:

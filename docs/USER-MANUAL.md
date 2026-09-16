@@ -192,7 +192,7 @@ taken first, so nothing is lost by trying.
 | An entry has a ⚠ mark in the log | After editing, end − start no longer matches the total by two minutes or more | It is only a marker; fix the start, end or total |
 | The tray icon shows a small mark and clicking it opens a question, not the popover | An idle prompt is waiting | Answer it; the popover comes back |
 | *Restore from backup…* refuses a file | It is not a SQLite file, fails SQLite's integrity check, is not a Time Tracker database, or comes from a newer version | Pick a file made by *Back up now* or *Export all data…* of this or an older version |
-| Windows Task Manager › Startup apps shows *Time Tracker* with a strange short path (`TIMETR~1`) | Cosmetic; Windows resolves it | Nothing to do |
+| Windows Task Manager › Startup apps shows *Time Tracker* with a strange short path (`TIMETR~1`) | 1.0.0 wrote the 8.3 name it was launched with; cosmetic, Windows resolves it | Toggle *Start at login* off and on in *Settings › General* (later versions write the long path) |
 
 The app writes uncaught errors to `timetracker.log` in the data folder
 (*Settings › Data › Open log file*).
